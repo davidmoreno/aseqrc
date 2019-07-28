@@ -1,0 +1,43 @@
+<html>
+<head>
+  <title>ALSA HTTP REMOTE CONNECT</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      {% for input in inputs %}
+        <th title="{{input.id}}">{{input.label}}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for output in outputs %}
+      <tr>
+        <td title="{{output.id}}">{{output.label}}</td>
+        {% for input in inputs %}
+          <td>
+            <form method="POST">
+              <input type="hidden" name="conn" value="{{input.id}} {{output.id}}"/>
+              <input
+                type="checkbox" {% if output.id in connections[input.id] %}checked{% endif %}
+                onchange="this.form.submit()" name="on"
+                />
+            </form>
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% for err in errors %}
+  <div class="error">
+    {{err}}
+  </div>
+{% endfor %}
+
+</body>
+</html>
