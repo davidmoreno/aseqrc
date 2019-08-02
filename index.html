@@ -2,6 +2,76 @@
 <head>
   <title>ALSA HTTP REMOTE CONNECT</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+/*
+  https://www.color-hex.com/color-palette/81456
+  #fc0300
+  #ffe730
+  #feb300
+  #263c5b
+  #532a3e
+  */
+body{
+  background: #263c5b;
+  color: #feb300;
+  font-family: sans;
+}
+table td {
+  padding: 1em;
+  vertical-align: center;
+  text-align: center;
+  height: 100%;
+}
+form {
+  margin: 0;
+}
+
+.flipswitch
+{
+    position: relative;
+    background: #263c5b;
+    width: 120px;
+    height: 40px;
+    -webkit-appearance: initial;
+    border-radius: 3px;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    outline:none;
+    font-size: 14px;
+    font-family: Trebuchet, Arial, sans-serif;
+    font-weight: bold;
+    cursor:pointer;
+    border:1px solid #ddd;
+}
+.flipswitch:checked{
+  background: #feb300;
+}
+.flipswitch:after
+{
+    position:absolute;
+    top:5%;
+    display:block;
+    line-height:32px;
+    width:45%;
+    height:90%;
+    background: #fff;
+    box-sizing:border-box;
+    text-align:center;
+    transition: all 0.3s ease-in 0s;
+    color:black;
+    border:#888 1px solid;
+    border-radius:3px;
+}
+.flipswitch:after
+{
+    left:2%;
+    content: "OFF";
+}
+.flipswitch:checked:after
+{
+    left:53%;
+    content: "ON";
+}
+</style>
 </head>
 <body>
 
@@ -24,7 +94,7 @@
               <input type="hidden" name="conn" value="{{input.id}} {{output.id}}"/>
               <input
                 type="checkbox" {% if output.id in connections[input.id] %}checked{% endif %}
-                onchange="this.form.submit()" name="on"
+                onchange="this.form.submit()" name="on" class="flipswitch"
                 />
             </form>
           </td>
