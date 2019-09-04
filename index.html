@@ -71,43 +71,100 @@ form {
     left:53%;
     content: "ON";
 }
+.flex {
+  display: flex;
+}
+.flex-row {
+  flex-direction: row;
+}
+.flex-wrap {
+  flex-wrap: wrap;
+}
+button {
+    font-size: 0.6em;
+}
+.mr-10 {
+  margin-right: 10px;
+}
 </style>
 </head>
-<body>
+  <body>
 
-<table>
-  <thead>
-    <tr>
-      <th></th>
-      {% for input in inputs %}
-        <th title="{{input.id}}">{{input.label}}</th>
-      {% endfor %}
-    </tr>
-  </thead>
-  <tbody>
-    {% for output in outputs %}
+  <table>
+    <thead>
       <tr>
-        <td title="{{output.id}}">{{output.label}}</td>
+        <th>↓out↓ &nbsp; →in→</th>
         {% for input in inputs %}
-          <td>
-            <form method="POST">
-              <input type="hidden" name="conn" value="{{input.id}} {{output.id}}"/>
-              <input
-                type="checkbox" {% if output.id in connections[input.id] %}checked{% endif %}
-                onchange="this.form.submit()" name="on" class="flipswitch"
-                />
-            </form>
-          </td>
+        <th title="{{input.id}}">
+          {{input.label}}
+          <form method="POST">
+            <button name="hide_in" value="{{input.label}}">
+              hide
+            </button>
+          </form>
+        </th>
         {% endfor %}
       </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% for err in errors %}
-  <div class="error">
-    {{err}}
-  </div>
-{% endfor %}
+    </thead>
+    <tbody>
+      {% for output in outputs %}
+        <tr>
+          <td title="{{output.id}}">
+            {{output.label}}
+            <form method="POST">
+              <button name="hide_out" value="{{output.label}}">
+                hide
+              </button>
+            </form>
+          </td>
+          {% for input in inputs %}
+            <td>
+              <form method="POST">
+                <input type="hidden" name="conn" value="{{input.id}} {{output.id}}"/>
+                <input
+                  type="checkbox" {% if output.id in connections[input.id] %}checked{% endif %}
+                  onchange="this.form.submit()" name="on" class="flipswitch"
+                  />
+              </form>
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
-</body>
+  <h2>Hidden input</h2>
+  <div class="flex flex-row flex-wrap">
+    {% for input in hidden_in %}
+      <span title="{{input.id}}" class="mr-10">
+        {{input}}
+        <form method="POST">
+          <button name="show_in" value="{{input}}">
+            show
+          </button>
+        </form>
+      </span>
+    {% endfor %}
+  </div>
+  <h2>Hidden output</h2>
+  <div class="flex flex-row flex-wrap">
+    {% for output in hidden_out %}
+      <span title="{{output.id}}" class="mr-10">
+        {{output}}
+        <form method="POST">
+          <button name="show_out" value="{{output}}">
+            show
+          </button>
+        </form>
+      </span>
+    {% endfor %}
+  </div>
+
+  {% for err in errors %}
+    <div class="error">
+      {{err}}
+    </div>
+  {% endfor %}
+
+  </body>
 </html>
