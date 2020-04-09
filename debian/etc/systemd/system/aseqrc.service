@@ -1,9 +1,0 @@
-[Unit]
-Description=ASEQ Remote Control
-
-[Service]
-ExecStart=/opt/aseqrc/aseqrc.py
-WorkingDirectory=/opt/aseqrc/
-
-[Install]
-WantedBy=multi-user.target

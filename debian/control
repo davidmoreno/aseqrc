@@ -10,7 +10,7 @@ Homepage: <insert the upstream URL, if relevant>
 
 Package: aseqrc
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, python3, python3-flask
+Depends: ${shlibs:Depends}, ${misc:Depends}, python3, python3-flask, python3-sh
 Description: Control Aslas Sequencer conenection via web
  This allows a raspberry pi without monitor to change connections using your
  mobile.

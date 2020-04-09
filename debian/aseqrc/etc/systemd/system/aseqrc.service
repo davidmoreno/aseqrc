@@ -1,9 +1,0 @@
-[Unit]
-Description=ALSA sequencer Remote Control. Server at IP:5000
-
-[Service]
-ExecStart=/usr/bin/aseqrc
-WorkingDirectory=/usr/share/aseqrc/
-
-[Install]
-WantedBy=multi-user.target
