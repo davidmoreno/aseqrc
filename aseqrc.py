@@ -64,6 +64,31 @@ def list_connections():
     return ret
 
 
+@app.route("/sw.js", methods=["GET"])
+def swjs():
+    with open("sw.js", 'rb') as fd:
+        content = fd.read()
+    return flask.Response(content, mimetype="application/javascript")
+
+
+@app.route("/manifest.json", methods=["GET"])
+def manifestjson():
+    with open("manifest.json", 'rb') as fd:
+        content = fd.read()
+    return flask.Response(content, mimetype="application/json")
+
+
+@app.route("/icons/<path:path>", methods=["GET"])
+def icons(path):
+    print(f"icons/{path}")
+    with open(f"icons/{path}", 'rb') as fd:
+        content = fd.read()
+    return flask.Response(content, mimetype="image/png")
+
+@app.route("/index.html", methods=["GET", "POST"])
+def index_html():
+    return index()
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     global hidden_in, hidden_out
