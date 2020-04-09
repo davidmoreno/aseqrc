@@ -5,7 +5,7 @@ import sh
 import re
 # import alsaseq
 
-PATH = "."
+PATH = "/home/dmoreno/src/audiomidi/aseqrc/debian/aseqrc/usr/share/aseqrc/"
 app = flask.Flask(__name__, template_folder=PATH)
 PORT_INPUT = 1
 PORT_OUTPUT = 2
