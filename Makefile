@@ -12,6 +12,8 @@ install:
 	mkdir -p $(DESTDIR)/usr/share/aseqrc/
 	cp index.html $(DESTDIR)/usr/share/aseqrc/
 	cp sw.js $(DESTDIR)/usr/share/aseqrc/
+	cp manifest.json $(DESTDIR)/usr/share/aseqrc/
+	cp -a icons $(DESTDIR)/usr/share/aseqrc/
 	chmod +x $(DESTDIR)/usr/bin/aseqrc
 	mkdir -p $(DESTDIR)/etc/systemd/system/
 	cp aseqrc.service $(DESTDIR)/etc/systemd/system/
