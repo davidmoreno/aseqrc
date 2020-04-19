@@ -144,33 +144,71 @@ def list_connections():
 
     return ret
 
-def connect(from_, to_):
+@app.route("/connect", methods=["POST", "OPTIONS"])
+def connect():
+    if flask.request.method != "POST":
+        resp = flask.jsonify({"detail": "Nothing to do"})
+        resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+        resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+        return resp
+
+    from_ = flask.request.json["from"]
+    to_ = flask.request.json["to"]
+
+    errors = None
     logger.info("Connect <%s> to <%s>", from_, to_)
     name_to_port = config["name_to_port"]
-    print(name_to_port, from_, to_)
     if from_ not in name_to_port:
         logger.debug("Unknown port name: %s", from_)
-        return
+        errors = ["Unknown port name", str(from_)]
     if to_ not in name_to_port:
         logger.debug("Unknown port name: %s", to_)
-        return
+        errors = ["Unknown port name", str(to_)]
     try:
         sh.aconnect(name_to_port[from_], name_to_port[to_])
     except sh.ErrorReturnCode as e:
-        errors = ["Could not disconnect", str(e)]
+        errors = ["Could not connect", str(e)]
+
+    if errors:
+        resp = flask.jsonify({"detail": "Done"})
+    else:
+        resp = flask.jsonify({"detail": errors})
+    resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+    resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+    return resp
 
 
-def disconnect(from_, to_):
+@app.route("/disconnect", methods=["POST", "OPTIONS"])
+def disconnect():
+    if flask.request.method != "POST":
+        resp = flask.jsonify({"detail": "Nothing to do"})
+        resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+        resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+        return resp
+
+    from_ = flask.request.json["from"]
+    to_ = flask.request.json["to"]
     logger.info("Disconnect <%s> to <%s>", from_, to_)
     name_to_port = config["name_to_port"]
+    errors = None
     if not from_ in name_to_port:
         logger.debug("Unknonw port name: %s", from_)
+        errors = ["Unknown port name", str(from_)]
     if not to_ in name_to_port:
         logger.debug("Unknonw port name: %s", to_)
+        errors = ["Unknown port name", str(to_)]
     try:
         sh.aconnect("-d", name_to_port[from_], name_to_port[to_])
     except sh.ErrorReturnCode as e:
         errors = ["Could not disconnect", str(e)]
+
+    if errors:
+        resp = flask.jsonify({"detail": "Done"})
+    else:
+        resp = flask.jsonify({"detail": errors})
+    resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+    resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+    return resp
 
 
 @app.route("/sw.js", methods=["GET"])
@@ -241,13 +279,15 @@ def status():
 
     connections = list_connections()
 
-    return flask.jsonify({
+    resp = flask.jsonify({
         "inputs": input_ports,
         "outputs": output_ports,
         "connections": connections,
         "hidden_in": config["hidden_in"],
         "hidden_out": config["hidden_out"],
     })
+    resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+    return resp
 
 def setup():
     ports = list_ports(PORT_ALL, [])
