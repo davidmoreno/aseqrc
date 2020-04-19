@@ -1,6 +1,7 @@
 import React from 'react'
 import api from './api'
 import { PortId, PortI } from './connection'
+import './styles.css'
 
 interface AppState {
   inputs: PortI[];
@@ -28,11 +29,13 @@ class App extends React.Component<{}, AppState> {
 
   async componentDidMount() {
     await this.reloadStatus()
+
+    // May be set to unmount, but unmount is get out so ...
+    setInterval(this.reloadStatus.bind(this), 5000)
   }
 
   async reloadStatus(){
     const status = await api.get<AppState>("status")
-    console.log(status)
     this.setState({
       inputs: status.inputs,
       outputs: status.outputs,
@@ -61,29 +64,33 @@ class App extends React.Component<{}, AppState> {
 
     return (
       <div className="">
-        <table>
+        <table className="w-100vw">
           <thead>
-            <tr>
+            <tr className="bg-orange">
               <th>Input Port</th>
-              <th>Output ports...</th>
+              <th>Output ports</th>
             </tr>
           </thead>
           <tbody>
             {inputs.map( i => (
               <tr key={i.id}>
                 <th>{i.label}</th>
-                {(connections[i.id] || []).map( o => (
-                  <td key={o}>
-                    {o}
-                    <button onClick={() => this.disconnect(i.id, o)}>x</button>
-                  </td>
-                ))}
-                <td>
-                  <select onChange={ev => this.connect(i.id, ev.target.value)}>
-                    {outputs.filter( o => !includes(connections[i.id], o.id)).map( o => (
-                      <option value={o.id} key={o.id}>{o.label}</option>
+                <td className="align-top">
+                  <div className="flex flex-row md:flex-col">
+                    {(connections[i.id] || []).map( o => (
+                      <div key={o} className="px-10px py-10px">
+                        <span className="pr-10px">{o}</span>
+                        <button onClick={() => this.disconnect(i.id, o)}>x</button>
+                      </div>
                     ))}
-                  </select>
+                    <div>
+                      <select onChange={ev => this.connect(i.id, ev.target.value)}>
+                        {outputs.filter( o => !includes(connections[i.id], o.id)).map( o => (
+                          <option value={o.id} key={o.id}>{o.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </td>
               </tr>
             ))}

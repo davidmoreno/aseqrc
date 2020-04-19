@@ -3,4 +3,4 @@
 !.babelrc
 debian/aseqrc
 node_modules
-build
+dist
