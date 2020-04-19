@@ -133,7 +133,8 @@ button {
           {% for input in inputs %}
             <td>
               <form method="POST">
-                <input type="hidden" name="conn" value="{{input.id}} {{output.id}}"/>
+                <input type="hidden" name="from" value="{{input.id}}"/>
+                <input type="hidden" name="to" value="{{output.id}}"/>
                 <input
                   type="checkbox" {% if output.id in connections[input.id] %}checked{% endif %}
                   onchange="this.form.submit()" name="on" class="flipswitch"
