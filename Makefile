@@ -25,8 +25,12 @@ setup:
 
 node_modules: setup
 
+
+PARCEL:=node_modules/.bin/parcel
+
 build: node_modules
-	node_modules/bin/parcel build src/index.html || node_modules/.bin/parcel build src/index.html
+	${PARCEL} build src/index.html -d static --public-url /static/
+	cp -a icons static
 
 run:
 	./aseqrc.py

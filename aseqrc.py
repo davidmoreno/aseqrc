@@ -44,6 +44,7 @@ PORT_ALL = 3
 RE_PARENT = re.compile(r"client (\d+): '(.*?)' \[((.*?)=(.*?))+\]$")
 RE_CHILD = re.compile(r"    (\d+) '(.*?)'$")
 RE_CONNECT_TO = re.compile(r"\tConnecting To: (.*?):(.*?)(, (.*?):(.*?))*$")
+HOSTNAME = "http://localhost:5000/"
 
 
 class Config:
@@ -157,7 +158,7 @@ def connect():
     if flask.request.method != "POST":
         resp = flask.jsonify({"detail": "Nothing to do"})
         resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-        resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+        resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
         return resp
 
     from_ = flask.request.json["from"]
@@ -182,7 +183,7 @@ def connect():
     else:
         resp = flask.jsonify({"detail": errors})
     resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-    resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
     return resp
 
 
@@ -191,7 +192,7 @@ def disconnect():
     if flask.request.method != "POST":
         resp = flask.jsonify({"detail": "Nothing to do"})
         resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-        resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+        resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
         return resp
 
     from_ = flask.request.json["from"]
@@ -215,7 +216,7 @@ def disconnect():
     else:
         resp = flask.jsonify({"detail": errors})
     resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-    resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
     return resp
 
 
@@ -253,7 +254,7 @@ def static(filename):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    return static("dist/index.html")
+    return flask.redirect("/static/index.html")
 
 
 @app.route("/status", methods=["GET", "POST"])
@@ -271,14 +272,14 @@ def status():
         "hidden_in": config["hidden_in"],
         "hidden_out": config["hidden_out"],
     })
-    resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
     return resp
 
 
 def setup():
     ports = list_ports(PORT_ALL, [])
 
-    for from_, tos_ in config["connections"].items():
+    for from_, tos_ in config.get("connections", {}).items():
         for to_ in tos_:
             connect(from_, to_)
 
