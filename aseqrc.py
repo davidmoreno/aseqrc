@@ -30,7 +30,13 @@ logger = logging.getLogger("aseqrc")
 # import alsaseq
 
 PATH = "."
-CONFIGFILE = os.path.expanduser("~/.config/aseqrc/current.json") if PATH == '.' else '/var/lib/aseqrc/current.json'
+if PATH == '.':
+    CONFIGFILE = os.path.expanduser(
+        "~/.config/aseqrc/current.json"
+    )
+else:
+    CONFIGFILE = '/var/lib/aseqrc/current.json'
+
 app = flask.Flask(__name__, template_folder=PATH)
 PORT_INPUT = 1
 PORT_OUTPUT = 2
@@ -68,6 +74,7 @@ class Config:
         with open(self.filename, 'wt') as fd:
             fd.write(json.dumps(self.config, indent=2))
         return value
+
 
 config = Config(CONFIGFILE)
 
@@ -143,6 +150,7 @@ def list_connections():
     config["connections"] = ret
 
     return ret
+
 
 @app.route("/connect", methods=["POST", "OPTIONS"])
 def connect():
@@ -231,9 +239,11 @@ def icons(path):
         content = fd.read()
     return flask.Response(content, mimetype="image/png")
 
+
 @app.route("/index.html", methods=["GET", "POST"])
 def index_html():
     return index()
+
 
 def static(filename):
     with open(filename, 'rb') as fd:
@@ -264,12 +274,14 @@ def status():
     resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
     return resp
 
+
 def setup():
     ports = list_ports(PORT_ALL, [])
 
     for from_, tos_ in config["connections"].items():
         for to_ in tos_:
             connect(from_, to_)
+
 
 if __name__ == '__main__':
     setup()
