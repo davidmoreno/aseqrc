@@ -227,7 +227,6 @@ def manifestjson():
 
 @app.route("/icons/<path:path>", methods=["GET"])
 def icons(path):
-    print(f"icons/{path}")
     with open(f"icons/{path}", 'rb') as fd:
         content = fd.read()
     return flask.Response(content, mimetype="image/png")
@@ -236,40 +235,16 @@ def icons(path):
 def index_html():
     return index()
 
+def static(filename):
+    with open(filename, 'rb') as fd:
+        content = fd.read()
+    return flask.Response(content, mimetype="")
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
-    errors = []
-    if flask.request.method == "POST":
-        data = flask.request.form
-        if 'hide_in' in data:
-            config["hidden_in"].append(data["hide_in"])
-        elif 'hide_out' in data:
-            config["hidden_out"].append(data["hide_out"])
-        elif 'show_in' in data:
-            config["hidden_in"] = [x for x in config["hidden_in"] if x != data["show_in"]]
-        elif 'show_out' in data:
-            config["hidden_out"] = [x for x in config["hidden_out"] if x != data["show_out"]]
-        elif 'from' in data:
-            if 'on' in data:
-                connect(data["from"], data["to"])
-            else:
-                disconnect(data["from"], data["to"])
-        return flask.redirect("/")
+    return static("dist/index.html")
 
-    input_ports = list_ports(PORT_INPUT, config["hidden_in"])
-    output_ports = list_ports(PORT_OUTPUT, config["hidden_out"])
-
-    connections = list_connections()
-
-    return flask.render_template(
-        "index.html",
-        inputs=input_ports,
-        outputs=output_ports,
-        connections=connections,
-        errors=errors,
-        hidden_in=config["hidden_in"],
-        hidden_out=config["hidden_out"],
-    )
 
 @app.route("/status", methods=["GET", "POST"])
 def status():
