@@ -1,3 +1,4 @@
+.PHONY: all setup install deb build run
 all:
 	@echo "run     -- Basic run the program"
 	@echo "install -- Installs and enable service. Uses DESTDIR"
@@ -19,8 +20,13 @@ install:
 	mkdir -p $(DESTDIR)/etc/systemd/system/
 	cp aseqrc.service $(DESTDIR)/etc/systemd/system/
 
-build:
-	node_modules/bin/parcel build src/index.html
+setup:
+	yarn
+
+node_modules: setup
+
+build: node_modules
+	node_modules/bin/parcel build src/index.html || node_modules/.bin/parcel build src/index.html
 
 run:
 	./aseqrc.py
