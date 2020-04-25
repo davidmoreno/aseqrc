@@ -154,7 +154,7 @@ def list_connections():
 
 
 @app.route("/connect", methods=["POST", "OPTIONS"])
-def connect():
+def connect_api():
     if flask.request.method != "POST":
         resp = flask.jsonify({"detail": "Nothing to do"})
         resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
@@ -164,6 +164,17 @@ def connect():
     from_ = flask.request.json["from"]
     to_ = flask.request.json["to"]
 
+    errors = connect(from_, to_)
+    if errors:
+        resp = flask.jsonify({"detail": "Done"})
+    else:
+        resp = flask.jsonify({"detail": errors})
+    resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+    return resp
+
+
+def connect(from_, to_):
     errors = None
     logger.info("Connect <%s> to <%s>", from_, to_)
     name_to_port = config["name_to_port"]
@@ -178,6 +189,21 @@ def connect():
     except sh.ErrorReturnCode as e:
         errors = ["Could not connect", str(e)]
 
+    return errors
+
+
+@app.route("/disconnect", methods=["POST", "OPTIONS"])
+def disconnect_api():
+    if flask.request.method != "POST":
+        resp = flask.jsonify({"detail": "Nothing to do"})
+        resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+        resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+        return resp
+
+    from_ = flask.request.json["from"]
+    to_ = flask.request.json["to"]
+
+    errors = disconnect(from_, to_)
     if errors:
         resp = flask.jsonify({"detail": "Done"})
     else:
@@ -187,16 +213,7 @@ def connect():
     return resp
 
 
-@app.route("/disconnect", methods=["POST", "OPTIONS"])
-def disconnect():
-    if flask.request.method != "POST":
-        resp = flask.jsonify({"detail": "Nothing to do"})
-        resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-        resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
-        return resp
-
-    from_ = flask.request.json["from"]
-    to_ = flask.request.json["to"]
+def disconnect(from_, to_):
     logger.info("Disconnect <%s> to <%s>", from_, to_)
     name_to_port = config["name_to_port"]
     errors = None
@@ -211,13 +228,7 @@ def disconnect():
     except sh.ErrorReturnCode as e:
         errors = ["Could not disconnect", str(e)]
 
-    if errors:
-        resp = flask.jsonify({"detail": "Done"})
-    else:
-        resp = flask.jsonify({"detail": errors})
-    resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
-    return resp
+    return errors
 
 
 @app.route("/sw.js", methods=["GET"])
@@ -255,6 +266,11 @@ def static(filename):
 @app.route("/", methods=["GET", "POST"])
 def index():
     return flask.redirect("/static/index.html")
+
+
+@app.route("/favicon.ico", methods=["GET", "POST"])
+def favicon():
+    return flask.redirect("/static/icons/icon-128x128.png")
 
 
 @app.route("/status", methods=["GET", "POST"])
