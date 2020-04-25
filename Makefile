@@ -1,6 +1,7 @@
 all:
 	@echo "run     -- Basic run the program"
 	@echo "install -- Installs and enable service. Uses DESTDIR"
+	@echo "build   -- Builds the React frontend"
 	@echo "deb     -- Creates a debian package"
 
 DESTDIR:=/
@@ -17,6 +18,9 @@ install:
 	chmod +x $(DESTDIR)/usr/bin/aseqrc
 	mkdir -p $(DESTDIR)/etc/systemd/system/
 	cp aseqrc.service $(DESTDIR)/etc/systemd/system/
+
+build:
+	node_modules/bin/parcel build src/index.html
 
 run:
 	./aseqrc.py
