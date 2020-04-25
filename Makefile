@@ -31,6 +31,8 @@ PARCEL:=node_modules/.bin/parcel
 build: node_modules
 	${PARCEL} build src/index.html -d static --public-url /static/
 	cp -a icons static
+	cp src/manifest.json static/manifest.json
+	sed -i s/manifest\\.js/manifest.json/g static/index.html
 
 run:
 	./aseqrc.py
