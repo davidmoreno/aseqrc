@@ -29,13 +29,15 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)-8s:%(message)s',)
 logger = logging.getLogger("aseqrc")
 # import alsaseq
 
-PATH = "."
-if PATH == '.':
+PATH = os.path.realpath(os.path.dirname(__file__))
+if PATH == '/usr/share/aseqrc/':
+    CONFIGFILE = '/var/lib/aseqrc/current.json'
+else:
     CONFIGFILE = os.path.expanduser(
         "~/.config/aseqrc/current.json"
     )
-else:
-    CONFIGFILE = '/var/lib/aseqrc/current.json'
+
+os.chdir(PATH)
 
 app = flask.Flask(__name__, template_folder=PATH)
 PORT_INPUT = 1
@@ -233,34 +235,17 @@ def disconnect(from_, to_):
 
 @app.route("/sw.js", methods=["GET"])
 def swjs():
-    with open("sw.js", 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="application/javascript")
+    return flask.redirect("/static/sw.js")
 
 
 @app.route("/manifest.json", methods=["GET"])
 def manifestjson():
-    with open("manifest.json", 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="application/json")
-
-
-@app.route("/icons/<path:path>", methods=["GET"])
-def icons(path):
-    with open(f"icons/{path}", 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="image/png")
+    return flask.redirect("/static/manifest.json")
 
 
 @app.route("/index.html", methods=["GET", "POST"])
 def index_html():
-    return index()
-
-
-def static(filename):
-    with open(filename, 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="")
+    return flask.redirect("/static/index.html")
 
 
 @app.route("/", methods=["GET", "POST"])

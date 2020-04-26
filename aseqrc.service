@@ -2,8 +2,11 @@
 Description=ALSA sequencer Remote Control. Server at IP:5000
 
 [Service]
-ExecStart=/usr/bin/aseqrc
+User=aseqrc
+Group=audio
+ExecStart=/usr/share/aseqrc/aseqrc.py
 WorkingDirectory=/usr/share/aseqrc/
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
