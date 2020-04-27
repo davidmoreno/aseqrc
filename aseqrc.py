@@ -29,8 +29,16 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)-8s:%(message)s',)
 logger = logging.getLogger("aseqrc")
 # import alsaseq
 
-PATH = "."
-CONFIGFILE = os.path.expanduser("~/.config/aseqrc/current.json") if PATH == '.' else '/var/lib/aseqrc/current.json'
+PATH = os.path.realpath(os.path.dirname(__file__))
+if PATH == '/usr/share/aseqrc/':
+    CONFIGFILE = '/var/lib/aseqrc/current.json'
+else:
+    CONFIGFILE = os.path.expanduser(
+        "~/.config/aseqrc/current.json"
+    )
+
+os.chdir(PATH)
+
 app = flask.Flask(__name__, template_folder=PATH)
 PORT_INPUT = 1
 PORT_OUTPUT = 2
@@ -38,6 +46,7 @@ PORT_ALL = 3
 RE_PARENT = re.compile(r"client (\d+): '(.*?)' \[((.*?)=(.*?))+\]$")
 RE_CHILD = re.compile(r"    (\d+) '(.*?)'$")
 RE_CONNECT_TO = re.compile(r"\tConnecting To: (.*?):(.*?)(, (.*?):(.*?))*$")
+HOSTNAME = "http://localhost:5000/"
 
 
 class Config:
@@ -68,6 +77,7 @@ class Config:
         with open(self.filename, 'wt') as fd:
             fd.write(json.dumps(self.config, indent=2))
         return value
+
 
 config = Config(CONFIGFILE)
 
@@ -144,17 +154,29 @@ def list_connections():
 
     return ret
 
+
 @app.route("/connect", methods=["POST", "OPTIONS"])
-def connect():
+def connect_api():
     if flask.request.method != "POST":
         resp = flask.jsonify({"detail": "Nothing to do"})
         resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-        resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+        resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
         return resp
 
     from_ = flask.request.json["from"]
     to_ = flask.request.json["to"]
 
+    errors = connect(from_, to_)
+    if errors:
+        resp = flask.jsonify({"detail": "Done"})
+    else:
+        resp = flask.jsonify({"detail": errors})
+    resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+    return resp
+
+
+def connect(from_, to_):
     errors = None
     logger.info("Connect <%s> to <%s>", from_, to_)
     name_to_port = config["name_to_port"]
@@ -169,25 +191,31 @@ def connect():
     except sh.ErrorReturnCode as e:
         errors = ["Could not connect", str(e)]
 
+    return errors
+
+
+@app.route("/disconnect", methods=["POST", "OPTIONS"])
+def disconnect_api():
+    if flask.request.method != "POST":
+        resp = flask.jsonify({"detail": "Nothing to do"})
+        resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+        resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+        return resp
+
+    from_ = flask.request.json["from"]
+    to_ = flask.request.json["to"]
+
+    errors = disconnect(from_, to_)
     if errors:
         resp = flask.jsonify({"detail": "Done"})
     else:
         resp = flask.jsonify({"detail": errors})
     resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-    resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
     return resp
 
 
-@app.route("/disconnect", methods=["POST", "OPTIONS"])
-def disconnect():
-    if flask.request.method != "POST":
-        resp = flask.jsonify({"detail": "Nothing to do"})
-        resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-        resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
-        return resp
-
-    from_ = flask.request.json["from"]
-    to_ = flask.request.json["to"]
+def disconnect(from_, to_):
     logger.info("Disconnect <%s> to <%s>", from_, to_)
     name_to_port = config["name_to_port"]
     errors = None
@@ -202,48 +230,32 @@ def disconnect():
     except sh.ErrorReturnCode as e:
         errors = ["Could not disconnect", str(e)]
 
-    if errors:
-        resp = flask.jsonify({"detail": "Done"})
-    else:
-        resp = flask.jsonify({"detail": errors})
-    resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-    resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
-    return resp
+    return errors
 
 
 @app.route("/sw.js", methods=["GET"])
 def swjs():
-    with open("sw.js", 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="application/javascript")
+    return flask.redirect("/static/sw.js")
 
 
 @app.route("/manifest.json", methods=["GET"])
 def manifestjson():
-    with open("manifest.json", 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="application/json")
+    return flask.redirect("/static/manifest.json")
 
-
-@app.route("/icons/<path:path>", methods=["GET"])
-def icons(path):
-    with open(f"icons/{path}", 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="image/png")
 
 @app.route("/index.html", methods=["GET", "POST"])
 def index_html():
-    return index()
-
-def static(filename):
-    with open(filename, 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="")
+    return flask.redirect("/static/index.html")
 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    return static("dist/index.html")
+    return flask.redirect("/static/index.html")
+
+
+@app.route("/favicon.ico", methods=["GET", "POST"])
+def favicon():
+    return flask.redirect("/static/icons/icon-128x128.png")
 
 
 @app.route("/status", methods=["GET", "POST"])
@@ -261,15 +273,17 @@ def status():
         "hidden_in": config["hidden_in"],
         "hidden_out": config["hidden_out"],
     })
-    resp.headers["Access-Control-Allow-Origin"] = 'http://localhost:1234'
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
     return resp
+
 
 def setup():
     ports = list_ports(PORT_ALL, [])
 
-    for from_, tos_ in config["connections"].items():
+    for from_, tos_ in config.get("connections", {}).items():
         for to_ in tos_:
             connect(from_, to_)
+
 
 if __name__ == '__main__':
     setup()

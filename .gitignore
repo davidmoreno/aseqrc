@@ -4,3 +4,5 @@
 debian/aseqrc
 node_modules
 dist
+static
+env

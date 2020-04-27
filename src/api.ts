@@ -1,4 +1,4 @@
-let BASE_URL = "http://localhost:5000"
+let BASE_URL = ""
 
 function escape_query_params(params: any) {
     const esc = encodeURIComponent;
@@ -8,7 +8,7 @@ function escape_query_params(params: any) {
     return query
 }
 
-export async function post<T=any>(url: string, qs: any){
+export async function post<T = any>(url: string, qs: any) {
     const uri = `${BASE_URL}/${url}`
     const options = {
         method: 'POST',
@@ -22,7 +22,7 @@ export async function post<T=any>(url: string, qs: any){
     return (await res.json()) as T
 }
 
-export async function get<T=any>(url: string, qs: any={}){
+export async function get<T = any>(url: string, qs: any = {}) {
     let uri = `${BASE_URL}/${url}`
     if (qs.length > 0)
         uri = `${uri}?${escape_query_params(qs)}`
