@@ -66,25 +66,25 @@ class App extends React.Component<{}, AppState> {
       <div className="">
         <table className="w-100vw">
           <thead>
-            <tr className="bg-orange">
+            <tr className="bg-orange" className="md:flex md:flex-col">
               <th>Input Port</th>
               <th>Output ports</th>
             </tr>
           </thead>
           <tbody>
             {inputs.map( i => (
-              <tr key={i.id}>
-                <th>{i.label}</th>
-                <td className="align-top">
+              <tr key={i.id} className="md:flex md:flex-col">
+                <th className="text-blue bg-orange">{i.label}</th>
+                <td className="align-top pb-20px">
                   <div className="flex flex-row md:flex-col">
                     {(connections[i.id] || []).map( o => (
-                      <div key={o} className="px-10px py-10px">
-                        <span className="pr-10px">{o}</span>
+                      <div key={o} className="px-10px py-10px flex flex-row">
+                        <span className="pr-10px w-full">{o}</span>
                         <button onClick={() => this.disconnect(i.id, o)}>x</button>
                       </div>
                     ))}
                     <div>
-                      <select onChange={ev => this.connect(i.id, ev.target.value)}>
+                      <select onChange={ev => this.connect(i.id, ev.target.value)} className="w-full">
                         {outputs.filter( o => !includes(connections[i.id], o.id)).map( o => (
                           <option value={o.id} key={o.id}>{o.label}</option>
                         ))}

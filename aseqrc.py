@@ -123,7 +123,8 @@ def list_connections():
     parent_name = ""
     port_id = 0
     port_to_name = {}
-    for line in sh.aconnect("-l"):
+    cmdoutput = list(sh.aconnect("-l"))
+    for line in cmdoutput:
         m = RE_PARENT.match(line)
         if m:
             parent_id = m.group(1)
@@ -142,14 +143,18 @@ def list_connections():
         m = RE_CONNECT_TO.match(line)
         if m:
             for idx in range(0, len(m.groups()), 3):
-                print(line, m.groups())
+                # print(line, m.groups())
                 if not m.groups()[idx]:
                     continue
                 port = "%s:%s" % (m.groups()[idx], m.groups()[idx + 1])
-                name = port_to_name.get(port)
-                if name not in config["hidden_in"]:
-                    frms.append(name)
+                frms.append(port)
 
+    ret = {
+        k: [port_to_name.get(port) for port in v]
+        for k, v in
+        ret.items()
+    }
+    print(ret)
     config["connections"] = ret
 
     return ret
@@ -186,6 +191,10 @@ def connect(from_, to_):
     if to_ not in name_to_port:
         logger.debug("Unknown port name: %s", to_)
         errors = ["Unknown port name", str(to_)]
+
+    if errors:
+        return errors
+
     try:
         sh.aconnect(name_to_port[from_], name_to_port[to_])
     except sh.ErrorReturnCode as e:
