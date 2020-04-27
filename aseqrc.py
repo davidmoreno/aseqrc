@@ -282,7 +282,8 @@ def setup():
 
     for from_, tos_ in config.get("connections", {}).items():
         for to_ in tos_:
-            connect(from_, to_)
+            if from_ and to_:
+                connect(from_, to_)
 
 
 if __name__ == '__main__':
