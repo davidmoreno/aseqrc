@@ -17,7 +17,7 @@ install: build
 	mkdir -p $(DESTDIR)/var/lib/aseqrc/
 
 setup:
-	yarn
+	yarn --ignore-engines
 
 node_modules: setup
 
@@ -34,9 +34,9 @@ run:
 	./aseqrc.py
 
 deb: clean
-	dpkg-buildpackage --no-sign
+	dpkg-buildpackage --no-sign -d
 
 clean:
 	rm node_modules -rf
 	rm static -rf
-	rm .cache -rf	
+	rm .cache -rf
