@@ -148,7 +148,6 @@ class AlsaSequencer:
         port_id = 0
         cmdoutput = list(sh.aconnect("-l"))
         for line in cmdoutput:
-            print(line, ret, frms)
             m = RE_PARENT.match(line)
             if m:
                 parent_id = m.group(1)
@@ -171,8 +170,6 @@ class AlsaSequencer:
 
         self.connections = ret
         config["connections"] = ret
-
-        print(self.connections)
 
         return ret
 
