@@ -105,7 +105,10 @@ class AlsaSequencer:
 
         parent_id = 0
         parent_name = ""
-        for line in sh.aconnect(flags):
+
+        lines = sh.aconnect(flags)
+
+        for line in lines:
             m = RE_PARENT.match(line)
             if m:
                 parent_id = m.group(1)
@@ -119,24 +122,18 @@ class AlsaSequencer:
                 port_id = m.group(1)
                 port = f"{parent_id}:{port_id}"
 
-                data = self.ports.get(label, {
+                data = self.ports.get(port, {
                     "port": port,
                     "id": port,
                     "input": False,
                     "output": False,
                 })
 
-                data.update({
-                    "label": label,
-                })
+                data[ "label"] = label
                 if type == PORT_INPUT:
-                    data.update({
-                        "input": True,
-                    })
+                    data["input"] = True
                 if type == PORT_OUTPUT:
-                    data.update({
-                        "output": True,
-                    })
+                    data["output"] = True
 
                 self.ports[port] = data
 
