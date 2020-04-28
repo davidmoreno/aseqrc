@@ -3,7 +3,14 @@ import api from './api'
 import { PortId, PortI } from './connection'
 import './styles.css'
 
+
+interface StatusI {
+  ports: PortI[];
+  connections: Record<PortId, PortId[]>;
+}
+
 interface AppState {
+  ports: PortI[];
   inputs: PortI[];
   outputs: PortI[];
   connections: Record<PortId, PortId[]>;
@@ -35,10 +42,11 @@ class App extends React.Component<{}, AppState> {
   }
 
   async reloadStatus(){
-    const status = await api.get<AppState>("status")
+    const status = await api.get<StatusI>("status")
     this.setState({
-      inputs: status.inputs,
-      outputs: status.outputs,
+      ports: status.ports,
+      inputs: Object.values(status.ports).filter( (x: PortI) => x.input ),
+      outputs: Object.values(status.ports).filter( (x: PortI) => x.output ),
       connections: status.connections,
     })
   }
@@ -60,12 +68,12 @@ class App extends React.Component<{}, AppState> {
   }
 
   render(){
-    const {inputs, outputs, connections} = this.state
+    const {inputs, outputs, connections, ports} = this.state
 
     return (
       <div className="">
         <table className="w-100vw">
-          <thead>
+          <thead className="md:hidden">
             <tr className="bg-orange" className="md:flex md:flex-col">
               <th>Input Port</th>
               <th>Output ports</th>
@@ -77,14 +85,15 @@ class App extends React.Component<{}, AppState> {
                 <th className="text-blue bg-orange">{i.label}</th>
                 <td className="align-top pb-20px">
                   <div className="flex flex-row md:flex-col">
-                    {(connections[i.id] || []).map( o => (
-                      <div key={o} className="px-10px py-10px flex flex-row">
-                        <span className="pr-10px w-full">{o}</span>
-                        <button onClick={() => this.disconnect(i.id, o)}>x</button>
+                    {(connections[i.id] || []).map( (o, n) => (
+                      <div key={o} className={`px-10px py-10px flex flex-row ${(n & 1) == 0 ? "bg-blue-light" : "" }`}>
+                        <span className="pr-10px w-full">{ports[o].label}</span>
+                        <button className="mw-45px" onClick={() => this.disconnect(i.id, o)}>✖</button>
                       </div>
                     ))}
-                    <div>
+                    <div className="pt-20px">
                       <select onChange={ev => this.connect(i.id, ev.target.value)} className="w-full">
+                        <option>-- Select Input to Connect --</option>
                         {outputs.filter( o => !includes(connections[i.id], o.id)).map( o => (
                           <option value={o.id} key={o.id}>{o.label}</option>
                         ))}

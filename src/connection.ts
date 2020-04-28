@@ -2,7 +2,9 @@
 export type PortId = string;
 
 export interface PortI{
-    id: PortId;
+    input: boolean;
+    output: boolean;
     label: string;
-    port: string;
-}
+    id: string;
+    port: PortId;
+};
