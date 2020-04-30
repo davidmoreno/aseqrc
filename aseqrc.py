@@ -21,12 +21,22 @@ import flask
 import sh
 import re
 import os
+import sys
 import hashlib
 import json
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)-8s:%(message)s',)
 logger = logging.getLogger("aseqrc")
+
+try:
+    from pyalsa import alsaseq
+    PYALSA = True
+except:
+    logger.warning(
+        "Using SH connector. It has less functionalities and is overall of less quality")
+    PYALSA = False
+
 # import alsaseq
 
 PATH = os.path.realpath(os.path.dirname(__file__))
@@ -86,7 +96,7 @@ class Config:
 config = Config(CONFIGFILE)
 
 
-class AlsaSequencer:
+class AlsaSequencerBase:
     def __init__(self):
         self.ports = {}
         self.connections = {}  # id to id
@@ -103,7 +113,22 @@ class AlsaSequencer:
                     self.connect(from_, to_)
 
     def update_all_ports(self):
-        self.ports = {}
+        raise NotImplemented()
+
+
+class AlsaSequencerSh(AlsaSequencerBase):
+    """
+    Basic implementation that calls aconnect -l every time
+    it needs to know info about connections.
+
+    This is not very smart, as it is slow, and do not allow
+    connection tracking (ie. reconnect devices).
+
+    This code will disappear, but no python3-pyalsa in older ubuntu 18.04.
+    """
+
+    def update_all_ports(self):
+        self.ports = {}  # each port: {id, label, port, input, output}
         self.update_ports(PORT_INPUT)
         self.update_ports(PORT_OUTPUT)
         self.update_connections()
@@ -225,7 +250,72 @@ class AlsaSequencer:
         return errors
 
 
-aseq = AlsaSequencer()
+class AlsaSequencerPyAlsa(AlsaSequencerBase):
+    """
+    Smarter connector, uses ALSA API.
+
+    It tracks connections as they are done, and new ports appear.
+
+    The track algorithm is:
+    1. If a new port appears, check if we have it in the connections list, and connect
+    2. When a new connection appears, add it to the connection list
+    3. When a port is disconnected, remove it from the list
+
+    This ensure that if a device disapears, it will be reconnected as last time. It follows
+    the port names, not the id, as the id can change.
+    """
+
+    READ_MASK = 33  # manually calculated.segfault if use consts
+    WRITE_MASK = 66
+
+    def __init__(self):
+        self.seq = alsaseq.Sequencer(
+            name="default",
+            clientname="aseqrc",
+            # streams=alsaseq.SEQ_OPEN_DUPLEX,
+            # mode=alsaseq.SEQ_BLOCK,
+        )
+        super().__init__()
+
+    def update_all_ports(self):
+        clients = self.seq.connection_list()
+
+        self.ports = {}
+        for client in clients:
+            clientname, clientid, ports = client
+            clientinfo = self.seq.get_client_info(clientid)
+            type = clientinfo['type']
+            if type == alsaseq.SEQ_USER_CLIENT:
+                type = 'user'
+            else:
+                type = 'kernel'
+
+            if clientid < 2:  # client 1 fails, and not important for us
+                continue
+
+            for port in ports:
+                portname, portid, conns = port
+                portinfo = self.seq.get_port_info(portid, clientid)
+
+                port = f"{clientid}:{portid}"
+                name = f"{clientname} / {portinfo['name']}"
+                input = portinfo["capability"] & self.READ_MASK
+                output = portinfo["capability"] & self.WRITE_MASK
+
+                self.ports[port] = {
+                    "port": port,
+                    "label": name,
+                    "input": bool(input),
+                    "output": bool(output),
+                }
+
+        print(self.ports)
+
+
+if PYALSA:
+    aseq = AlsaSequencerPyAlsa()
+else:
+    aseq = AlsaSequencerSh()
 
 
 @app.route("/connect", methods=["POST", "OPTIONS"])
@@ -309,5 +399,13 @@ def status():
     return resp
 
 
+def test():
+    aseq.update_all_ports()
+    print(aseq.ports)
+
+
 if __name__ == '__main__':
-    app.run(debug=DEBUG, host="0.0.0.0")
+    if 'test' in sys.argv:
+        test()
+    else:
+        app.run(debug=DEBUG, host="0.0.0.0")
