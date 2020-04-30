@@ -32,10 +32,15 @@ logger = logging.getLogger("aseqrc")
 PATH = os.path.realpath(os.path.dirname(__file__))
 if PATH == '/usr/share/aseqrc/':
     CONFIGFILE = '/var/lib/aseqrc/current.json'
+    DEBUG = False
 else:
     CONFIGFILE = os.path.expanduser(
         "~/.config/aseqrc/current.json"
     )
+    DEBUG = True
+
+if 'DEBUG' in os.environ:
+    DEBUG = True
 
 os.chdir(PATH)
 
@@ -84,10 +89,18 @@ config = Config(CONFIGFILE)
 class AlsaSequencer:
     def __init__(self):
         self.ports = {}
-        self.connections = {} # id to id
-        self.hidden = config.get("hidden", ["System / Timer", "System / Announce"])
+        self.connections = {}  # id to id
+        self.hidden = config.get(
+            "hidden", ["System / Timer", "System / Announce"]
+        )
 
         self.update_all_ports()
+
+    def setup(self):
+        for from_, tos_ in config.get("connections", {}).items():
+            for to_ in tos_:
+                if from_ and to_:
+                    self.connect(from_, to_)
 
     def update_all_ports(self):
         self.ports = {}
@@ -129,7 +142,7 @@ class AlsaSequencer:
                     "output": False,
                 })
 
-                data[ "label"] = label
+                data["label"] = label
                 if type == PORT_INPUT:
                     data["input"] = True
                 if type == PORT_OUTPUT:
@@ -204,13 +217,16 @@ class AlsaSequencer:
             return errors
 
         try:
-            sh.aconnect("-d", self.ports[from_]["port"], self.ports[to_]["port"])
+            sh.aconnect("-d", self.ports[from_]
+                        ["port"], self.ports[to_]["port"])
         except sh.ErrorReturnCode as e:
             errors = ["Could not disconnect", str(e)]
 
         return errors
 
+
 aseq = AlsaSequencer()
+
 
 @app.route("/connect", methods=["POST", "OPTIONS"])
 def connect_api():
@@ -281,7 +297,6 @@ def favicon():
 
 @app.route("/status", methods=["GET", "POST"])
 def status():
-    print(config)
     aseq.update_all_ports()
 
     resp = flask.jsonify({
@@ -294,13 +309,5 @@ def status():
     return resp
 
 
-def setup():
-    for from_, tos_ in config.get("connections", {}).items():
-        for to_ in tos_:
-            if from_ and to_:
-                aseq.connect(from_, to_)
-
-
 if __name__ == '__main__':
-    setup()
-    app.run(debug=True, host="0.0.0.0")
+    app.run(debug=DEBUG, host="0.0.0.0")
