@@ -1,0 +1,23 @@
+<html>
+
+<head>
+  <title>ALSA HTTP REMOTE CONNECT</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+  <div id="main"></div>
+  <script src="./index.tsx"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(function () {
+          console.log('Service Worker Registered');
+        });
+    }
+  </script>
+
+</body>
+
+</html>
