@@ -369,15 +369,12 @@ def swjs():
 def manifestjson():
     return flask.redirect("/static/manifest.json")
 
+index_html_cache = open("static/index.html", 'rt').read()
 
-@app.route("/index.html", methods=["GET", "POST"])
-def index_html():
-    return flask.redirect("/static/index.html")
-
-
-@app.route("/", methods=["GET", "POST"])
+@app.route("/index.html", methods=["GET"])
+@app.route("/", methods=["GET"])
 def index():
-    return flask.redirect("/static/index.html")
+    return index_html_cache
 
 
 @app.route("/favicon.ico", methods=["GET", "POST"])
