@@ -281,7 +281,8 @@ def manifestjson():
 
 index_html_cache = open("static/index.html", 'rt').read()
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/index.html", methods=["GET"])
+@app.route("/", methods=["GET"])
 def index():
     return index_html_cache
 
