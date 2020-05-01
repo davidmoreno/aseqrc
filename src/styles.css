@@ -1,0 +1,122 @@
+/*
+  https://www.color-hex.com/color-palette/81456
+  #fc0300
+  #ffe730
+  #feb300
+  #263c5b
+  #532a3e
+  */
+
+body {
+    background: #263c5b;
+    margin: 0;
+    font-family: sans-serif;
+    color: white;
+}
+
+table, table td, table th {
+    border: 3px solid #532a3e;
+    border-collapse: collapse;
+    padding: 15px;
+}
+
+button, select, input {
+    background: #feb300;
+    border: 0;
+    padding: 5px;
+    border-radius: 5px;
+    color: black;
+    box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    overflow-wrap: break-word;
+}
+
+button:hover, select:hover, input:hover {
+    background: #ffe730;
+}
+
+button {
+    width: 30px;
+}
+
+.w-100vw{
+    width: 100vw;
+}
+
+.mw-45px {
+    min-width: 45px;
+}
+
+.w-full {
+    width: 100%;
+}
+
+.px-10px {
+    padding-right: 10px;
+    padding-left: 10px;
+}
+
+.py-10px {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.pr-10px {
+    padding-right: 10px;
+}
+
+.pt-10px {
+    padding-top: 10px;
+}
+
+.pb-10px {
+    padding-bottom: 10px;
+}
+
+.pt-20px {
+    padding-top: 20px;
+}
+
+.pb-20px {
+    padding-bottom: 20px;
+}
+
+.flex{
+    display: flex;
+}
+
+.flex-row{
+    flex-direction: row;
+}
+
+.flex-col{
+    flex-direction: column;
+}
+
+.align-top{
+    vertical-align: top;
+}
+
+.bg-orange{
+    background-color:  #feb300;
+}
+
+.text-blue {
+    color: #263c5b;
+}
+
+.bg-blue-light {
+    background-color: #3b5880;
+}
+
+@media screen and (max-device-width: 1000px){
+    .md\:flex-col{
+        flex-direction: column;
+    }
+    .md\:flex{
+        display: flex;
+    }
+    .md\:hidden{
+        display: none;
+    }
+}

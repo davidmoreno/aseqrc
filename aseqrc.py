@@ -29,8 +29,21 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)-8s:%(message)s',)
 logger = logging.getLogger("aseqrc")
 # import alsaseq
 
-PATH = "."
-CONFIGFILE = os.path.expanduser("~/.config/aseqrc/current.json") if PATH == '.' else '/var/lib/aseqrc/current.json'
+PATH = os.path.realpath(os.path.dirname(__file__))
+if PATH == '/usr/share/aseqrc/':
+    CONFIGFILE = '/var/lib/aseqrc/current.json'
+    DEBUG = False
+else:
+    CONFIGFILE = os.path.expanduser(
+        "~/.config/aseqrc/current.json"
+    )
+    DEBUG = True
+
+if 'DEBUG' in os.environ:
+    DEBUG = True
+
+os.chdir(PATH)
+
 app = flask.Flask(__name__, template_folder=PATH)
 PORT_INPUT = 1
 PORT_OUTPUT = 2
@@ -38,6 +51,7 @@ PORT_ALL = 3
 RE_PARENT = re.compile(r"client (\d+): '(.*?)' \[((.*?)=(.*?))+\]$")
 RE_CHILD = re.compile(r"    (\d+) '(.*?)'$")
 RE_CONNECT_TO = re.compile(r"\tConnecting To: (.*?):(.*?)(, (.*?):(.*?))*$")
+HOSTNAME = "http://localhost:5000/"
 
 
 class Config:
@@ -50,8 +64,7 @@ class Config:
         else:
             os.makedirs(os.path.dirname(CONFIGFILE), exist_ok=True)
             self.config = {
-                "hidden_in": ["System / Timer", "System / Announce"],
-                "hidden_out": ["System / Timer", "System / Announce"],
+                "hidden": ["System / Timer", "System / Announce"],
                 "name_to_port": {}
             }
 
@@ -69,193 +82,232 @@ class Config:
             fd.write(json.dumps(self.config, indent=2))
         return value
 
+
 config = Config(CONFIGFILE)
 
 
-def list_ports(type, hidden):
-    if type == PORT_INPUT:
-        flags = "-li"
-    elif type == PORT_OUTPUT:
-        flags = "-lo"
-    else:
-        flags = "-l"
+class AlsaSequencer:
+    def __init__(self):
+        self.ports = {}
+        self.connections = {}  # id to id
+        self.hidden = config.get(
+            "hidden", ["System / Timer", "System / Announce"]
+        )
 
-    name_to_port = config["name_to_port"]
-    ret = []
-    parent_id = 0
-    parent_name = ""
-    for line in sh.aconnect(flags):
-        m = RE_PARENT.match(line)
-        if m:
-            parent_id = m.group(1)
-            parent_name = m.group(2)
-        m = RE_CHILD.match(line)
-        if m:
-            label = m.group(2).strip()
-            label = f"{parent_name} / {label}"
-            if label in hidden:
-                continue
-            port_id = m.group(1)
-            port = f"{parent_id}:{port_id}"
-            ret.append({
-                "port": port,
-                "label": label,
-                "id": label,
-            })
-            name_to_port[label] = port
-    return ret
+        self.update_all_ports()
 
+    def setup(self):
+        for from_, tos_ in config.get("connections", {}).items():
+            for to_ in tos_:
+                if from_ and to_:
+                    self.connect(from_, to_)
 
-def list_connections():
-    ret = {}
-    frms = []
-    parent_id = 0
-    parent_name = ""
-    port_id = 0
-    port_to_name = {}
-    for line in sh.aconnect("-l"):
-        m = RE_PARENT.match(line)
-        if m:
-            parent_id = m.group(1)
-            parent_name = m.group(2)
-        m = RE_CHILD.match(line)
-        if m:
-            port_id = m.group(1)
-            label = m.group(2).strip()
-            frms = []
-            name = f"{parent_name} / {label}"
-            if name in config["hidden_in"]:
-                continue
-            ret[name] = frms
-            port = f"{parent_id}:{port_id}"
-            port_to_name[port] = name
-        m = RE_CONNECT_TO.match(line)
-        if m:
-            for idx in range(0, len(m.groups()), 3):
-                print(line, m.groups())
-                if not m.groups()[idx]:
+    def update_all_ports(self):
+        self.ports = {}
+        self.update_ports(PORT_INPUT)
+        self.update_ports(PORT_OUTPUT)
+        self.update_connections()
+
+    def update_ports(self, type):
+        if type == PORT_INPUT:
+            flags = "-li"
+        elif type == PORT_OUTPUT:
+            flags = "-lo"
+        else:
+            flags = "-l"
+
+        parent_id = 0
+        parent_name = ""
+
+        lines = sh.aconnect(flags)
+
+        for line in lines:
+            m = RE_PARENT.match(line)
+            if m:
+                parent_id = m.group(1)
+                parent_name = m.group(2)
+            m = RE_CHILD.match(line)
+            if m:
+                label = m.group(2).strip()
+                label = f"{parent_name} / {label}"
+                if label in self.hidden:
                     continue
-                port = "%s:%s" % (m.groups()[idx], m.groups()[idx + 1])
-                name = port_to_name.get(port)
-                if name not in config["hidden_in"]:
-                    frms.append(name)
+                port_id = m.group(1)
+                port = f"{parent_id}:{port_id}"
 
-    config["connections"] = ret
+                data = self.ports.get(port, {
+                    "port": port,
+                    "id": port,
+                    "input": False,
+                    "output": False,
+                })
 
-    return ret
+                data["label"] = label
+                if type == PORT_INPUT:
+                    data["input"] = True
+                if type == PORT_OUTPUT:
+                    data["output"] = True
 
-def connect(from_, to_):
-    logger.info("Connect <%s> to <%s>", from_, to_)
-    name_to_port = config["name_to_port"]
-    print(name_to_port, from_, to_)
-    if from_ not in name_to_port:
-        logger.debug("Unknown port name: %s", from_)
-        return
-    if to_ not in name_to_port:
-        logger.debug("Unknown port name: %s", to_)
-        return
-    try:
-        sh.aconnect(name_to_port[from_], name_to_port[to_])
-    except sh.ErrorReturnCode as e:
-        errors = ["Could not disconnect", str(e)]
+                self.ports[port] = data
+
+    def update_connections(self):
+        ret = {}
+        frms = []
+        parent_id = 0
+        parent_name = ""
+        port_id = 0
+        cmdoutput = list(sh.aconnect("-l"))
+        for line in cmdoutput:
+            m = RE_PARENT.match(line)
+            if m:
+                parent_id = m.group(1)
+                parent_name = m.group(2)
+            m = RE_CHILD.match(line)
+            if m:
+                port_id = m.group(1)
+                label = m.group(2).strip()
+                frms = []
+                name = f"{parent_name} / {label}"
+                if name in config["hidden_in"]:
+                    continue
+                port = f"{parent_id}:{port_id}"
+                ret[port] = frms
+            m = RE_CONNECT_TO.match(line)
+            if m:
+                for port in line[16:].split(', '):
+                    # print(line, m.groups())
+                    frms.append(port.strip())
+
+        self.connections = ret
+        config["connections"] = ret
+
+        return ret
+
+    def connect(self, from_, to_):
+        errors = None
+        logger.info("Connect <%s> to <%s>", from_, to_)
+        if from_ not in self.ports:
+            logger.debug("Unknown port name: %s", from_)
+            errors = ["Unknown port name", str(from_)]
+        if to_ not in self.ports:
+            logger.debug("Unknown port name: %s", to_)
+            errors = ["Unknown port name", str(to_)]
+
+        if errors:
+            return errors
+
+        try:
+            sh.aconnect(self.ports[from_]["port"], self.ports[to_]["port"])
+        except sh.ErrorReturnCode as e:
+            errors = ["Could not connect", str(e)]
+
+        return errors
+
+    def disconnect(self, from_, to_):
+        logger.info("Disconnect <%s> to <%s>", from_, to_)
+        errors = None
+        if from_ not in self.ports:
+            logger.debug("Unknown port name: %s", from_)
+            errors = ["Unknown port name", str(from_)]
+        if to_ not in self.ports:
+            logger.debug("Unknown port name: %s", to_)
+            errors = ["Unknown port name", str(to_)]
+
+        if errors:
+            return errors
+
+        try:
+            sh.aconnect("-d", self.ports[from_]
+                        ["port"], self.ports[to_]["port"])
+        except sh.ErrorReturnCode as e:
+            errors = ["Could not disconnect", str(e)]
+
+        return errors
 
 
-def disconnect(from_, to_):
-    logger.info("Disconnect <%s> to <%s>", from_, to_)
-    name_to_port = config["name_to_port"]
-    if not from_ in name_to_port:
-        logger.debug("Unknonw port name: %s", from_)
-    if not to_ in name_to_port:
-        logger.debug("Unknonw port name: %s", to_)
-    try:
-        sh.aconnect("-d", name_to_port[from_], name_to_port[to_])
-    except sh.ErrorReturnCode as e:
-        errors = ["Could not disconnect", str(e)]
+aseq = AlsaSequencer()
+
+
+@app.route("/connect", methods=["POST", "OPTIONS"])
+def connect_api():
+    if flask.request.method != "POST":
+        resp = flask.jsonify({"detail": "Nothing to do"})
+        resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+        resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+        return resp
+
+    from_ = flask.request.json["from"]
+    to_ = flask.request.json["to"]
+
+    errors = aseq.connect(from_, to_)
+    if errors:
+        resp = flask.jsonify({"detail": "Done"})
+    else:
+        resp = flask.jsonify({"detail": errors})
+    resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+    return resp
+
+
+@app.route("/disconnect", methods=["POST", "OPTIONS"])
+def disconnect_api():
+    if flask.request.method != "POST":
+        resp = flask.jsonify({"detail": "Nothing to do"})
+        resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+        resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+        return resp
+
+    from_ = flask.request.json["from"]
+    to_ = flask.request.json["to"]
+
+    errors = aseq.disconnect(from_, to_)
+    if errors:
+        resp = flask.jsonify({"detail": "Done"})
+    else:
+        resp = flask.jsonify({"detail": errors})
+    resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+    return resp
 
 
 @app.route("/sw.js", methods=["GET"])
 def swjs():
-    with open("sw.js", 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="application/javascript")
+    return flask.redirect("/static/sw.js")
 
 
 @app.route("/manifest.json", methods=["GET"])
 def manifestjson():
-    with open("manifest.json", 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="application/json")
+    return flask.redirect("/static/manifest.json")
 
-
-@app.route("/icons/<path:path>", methods=["GET"])
-def icons(path):
-    print(f"icons/{path}")
-    with open(f"icons/{path}", 'rb') as fd:
-        content = fd.read()
-    return flask.Response(content, mimetype="image/png")
 
 @app.route("/index.html", methods=["GET", "POST"])
 def index_html():
-    return index()
+    return flask.redirect("/static/index.html")
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    errors = []
-    if flask.request.method == "POST":
-        data = flask.request.form
-        if 'hide_in' in data:
-            config["hidden_in"].append(data["hide_in"])
-        elif 'hide_out' in data:
-            config["hidden_out"].append(data["hide_out"])
-        elif 'show_in' in data:
-            config["hidden_in"] = [x for x in config["hidden_in"] if x != data["show_in"]]
-        elif 'show_out' in data:
-            config["hidden_out"] = [x for x in config["hidden_out"] if x != data["show_out"]]
-        elif 'from' in data:
-            if 'on' in data:
-                connect(data["from"], data["to"])
-            else:
-                disconnect(data["from"], data["to"])
-        return flask.redirect("/")
+    return flask.redirect("/static/index.html")
 
-    input_ports = list_ports(PORT_INPUT, config["hidden_in"])
-    output_ports = list_ports(PORT_OUTPUT, config["hidden_out"])
 
-    connections = list_connections()
+@app.route("/favicon.ico", methods=["GET", "POST"])
+def favicon():
+    return flask.redirect("/static/icons/icon-128x128.png")
 
-    return flask.render_template(
-        "index.html",
-        inputs=input_ports,
-        outputs=output_ports,
-        connections=connections,
-        errors=errors,
-        hidden_in=config["hidden_in"],
-        hidden_out=config["hidden_out"],
-    )
 
 @app.route("/status", methods=["GET", "POST"])
 def status():
-    print(config)
-    input_ports = list_ports(PORT_INPUT, config["hidden_in"])
-    output_ports = list_ports(PORT_OUTPUT, config["hidden_out"])
+    aseq.update_all_ports()
 
-    connections = list_connections()
-
-    return flask.jsonify({
-        "inputs": input_ports,
-        "outputs": output_ports,
-        "connections": connections,
+    resp = flask.jsonify({
+        "ports": aseq.ports,
+        "connections": aseq.connections,
         "hidden_in": config["hidden_in"],
         "hidden_out": config["hidden_out"],
     })
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+    return resp
 
-def setup():
-    ports = list_ports(PORT_ALL, [])
-
-    for from_, tos_ in config["connections"].items():
-        for to_ in tos_:
-            connect(from_, to_)
 
 if __name__ == '__main__':
-    setup()
-    app.run(debug=True, host="0.0.0.0")
+    app.run(debug=DEBUG, host="0.0.0.0")
