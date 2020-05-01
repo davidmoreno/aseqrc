@@ -281,6 +281,7 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         clients = self.seq.connection_list()
 
         self.ports = {}
+        self.connections = {}
         for client in clients:
             clientname, clientid, ports = client
             clientinfo = self.seq.get_client_info(clientid)
@@ -303,13 +304,53 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
                 output = portinfo["capability"] & self.WRITE_MASK
 
                 self.ports[port] = {
+                    "id": port,
                     "port": port,
                     "label": name,
                     "input": bool(input),
                     "output": bool(output),
                 }
 
-        print(self.ports)
+                if input:
+                    for conn in conns[1]:
+                        dport = f"{conn[0]}:{conn[1]}"
+                        if dport not in self.connections:
+                            self.connections[dport] = []
+                        self.connections[dport].append(port)
+
+    def connect(self, from_, to_):
+        logger.info("Connect %s -> %s", from_, to_)
+        sender = self.seq.parse_address(from_)
+        receiver = self.seq.parse_address(to_)
+        print(sender, receiver)
+        try:
+            self.seq.get_connect_info(sender, receiver)
+            logger.warning("Already connected %s -> %s", from_, to_)
+            return False
+        except Exception as e:
+            pass  # not exist
+        self.seq.connect_ports(
+            sender,
+            receiver,
+            0,
+            0,
+            0,
+            0,
+        )
+        return True
+
+    def disconnect(self, from_, to_):
+        logger.info("Disconnect %s -> %s", from_, to_)
+        sender = self.seq.parse_address(from_)
+        receiver = self.seq.parse_address(to_)
+        print(sender, receiver)
+        try:
+            self.seq.get_connect_info(sender, receiver)
+        except Exception as e:
+            logger.warning("Not connected %s -> %s", from_, to_)
+            return False
+        self.seq.disconnect_ports(sender, receiver)
+        return True
 
 
 if PYALSA:
@@ -369,7 +410,9 @@ def swjs():
 def manifestjson():
     return flask.redirect("/static/manifest.json")
 
+
 index_html_cache = open("static/index.html", 'rt').read()
+
 
 @app.route("/index.html", methods=["GET"])
 @app.route("/", methods=["GET"])
@@ -399,6 +442,7 @@ def status():
 def test():
     aseq.update_all_ports()
     print(aseq.ports)
+    aseq.connect("0:0", "0:0")
 
 
 if __name__ == '__main__':

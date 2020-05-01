@@ -62,6 +62,7 @@ class App extends React.Component<{}, AppState> {
   }
 
   async connect(f: PortId, t: PortId) {
+    console.info("Connect %o -> %o", f, t)
     await api.post("connect", {
       "from": f,
       "to": t,
