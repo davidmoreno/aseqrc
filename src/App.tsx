@@ -2,6 +2,7 @@ import React from 'react'
 import api from './api'
 import { PortId, PortI } from './connection'
 import './styles.css'
+import { row_style } from './colors';
 
 
 interface StatusI {
@@ -76,23 +77,23 @@ class App extends React.Component<{}, AppState> {
         <table className="w-100vw">
           <thead className="md:hidden">
             <tr className="bg-orange md:flex md:flex-col">
-              <th>Input Port</th>
-              <th>Output ports</th>
+              <th className="p-24px">Input Port</th>
+              <th className="p-24px">Output ports</th>
             </tr>
           </thead>
           <tbody>
-            {inputs.map(i => (
+            {inputs.map((i, rown) => (
               <tr key={i.id} className="md:flex md:flex-col">
-                <th className="text-blue bg-orange">{i.label}</th>
-                <td className="align-top pb-20px">
-                  <div className="flex flex-row md:flex-col">
+                <th className="p-24px md:min-w-400px" style={row_style(rown)}>{i.label}</th>
+                <td className="align-top">
+                  <div className="flex flex-row md:flex-col flex-wrap">
                     {(connections[i.id] || []).map((o, n) => (
-                      <div key={o} className={`px-10px py-10px flex flex-row ${(n & 1) == 0 ? "bg-blue-light" : ""}`}>
+                      <div key={o} className={`p-24px flex flex-row lg:min-w-400px br-1px bb-1px items-center ${(n & 1) == 0 ? "bg-blue-light" : ""}`}>
                         <span className="pr-10px w-full">{ports[o].label}</span>
-                        <button className="mw-45px" onClick={() => this.disconnect(i.id, o)}>✖</button>
+                        <button className="min-w-45px" onClick={() => this.disconnect(i.id, o)}>✖</button>
                       </div>
                     ))}
-                    <div className="pt-20px">
+                    <div className="p-24px lg:min-w-400px br-1px">
                       <select onChange={ev => this.connect(i.id, ev.target.value)} className="w-full">
                         <option>-- Select Input to Connect --</option>
                         {outputs.filter(o => !includes(connections[i.id], o.id)).map(o => (

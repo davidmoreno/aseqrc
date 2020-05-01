@@ -1,27 +1,28 @@
 /*
-  https://www.color-hex.com/color-palette/81456
-  #fc0300
-  #ffe730
-  #feb300
-  #263c5b
-  #532a3e
-  */
+Palette, based on jupiter 8
+ #ff6b1c
+ #73d83c
+ #ffea4b
+ #ffa431
+ #24add5
+ #53545d
+ #353b4c
+*/
 
 body {
-    background: #263c5b;
+    background: #53545d;
     margin: 0;
     font-family: sans-serif;
     color: white;
 }
 
 table, table td, table th {
-    border: 3px solid #532a3e;
+    border: 3px solid #353b4c;
     border-collapse: collapse;
-    padding: 15px;
 }
 
 button, select, input {
-    background: #feb300;
+    background: #f5f5db;
     border: 0;
     padding: 5px;
     border-radius: 5px;
@@ -32,7 +33,7 @@ button, select, input {
 }
 
 button:hover, select:hover, input:hover {
-    background: #ffe730;
+    background: #f5f5db;
 }
 
 button {
@@ -43,8 +44,12 @@ button {
     width: 100vw;
 }
 
-.mw-45px {
+.min-w-45px {
     min-width: 45px;
+}
+
+.min-w-400px {
+    min-width: 400px;
 }
 
 .w-full {
@@ -81,6 +86,18 @@ button {
     padding-bottom: 20px;
 }
 
+.p-24px {
+    padding: 24px;
+}
+
+.br-1px {
+    border-right: 1px solid #353b4c;
+}
+
+.bb-1px {
+    border-bottom: 1px solid #353b4c;
+}
+
 .flex{
     display: flex;
 }
@@ -93,20 +110,24 @@ button {
     flex-direction: column;
 }
 
+.flex-wrap {
+    flex-wrap: wrap;
+}
+
+.items-center{
+    align-items: center;
+}
+
 .align-top{
     vertical-align: top;
 }
 
 .bg-orange{
-    background-color:  #feb300;
+    background-color:  #ffa431;
 }
 
-.text-blue {
-    color: #263c5b;
-}
-
-.bg-blue-light {
-    background-color: #3b5880;
+.text-black {
+    color: black;
 }
 
 @media screen and (max-device-width: 1000px){
@@ -118,5 +139,13 @@ button {
     }
     .md\:hidden{
         display: none;
+    }
+    .md\:max-w-100vw {
+        max-width: 100vw;
+    }
+}
+@media screen and (min-device-width: 1001px){
+    .lg\:min-w-400px {
+        min-width: 400px;
     }
 }
