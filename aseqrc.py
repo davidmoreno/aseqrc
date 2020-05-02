@@ -49,8 +49,13 @@ else:
     )
     DEBUG = True
 
+
+def to_bool(x):
+    return x in [True, "true", "yes", 1, "1", "on"]
+
+
 if 'DEBUG' in os.environ:
-    DEBUG = True
+    DEBUG = to_bool(os.environ["DEBUG"])
 
 os.chdir(PATH)
 
@@ -74,7 +79,7 @@ class Config:
         else:
             os.makedirs(os.path.dirname(CONFIGFILE), exist_ok=True)
             self.config = {
-                "name_to_port": {}
+                "connections": {}
             }
 
     def get(self, key, defval=None):
@@ -87,9 +92,12 @@ class Config:
         if self.config.get(name) == value:  # NOP
             return value
         self.config[name] = value
+        self.save()
+        return value
+
+    def save(self):
         with open(self.filename, 'wt') as fd:
             fd.write(json.dumps(self.config, indent=2))
-        return value
 
 
 config = Config(CONFIGFILE)
@@ -292,9 +300,6 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
             else:
                 type = 'kernel'
 
-            if clientid < 2:  # client 1 fails, and not important for us
-                continue
-
             for port in ports:
                 portname, portid, conns = port
 
@@ -308,25 +313,46 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
                             self.connections[dport] = []
                         self.connections[dport].append(port)
 
+        # update new connections. Does not remove anything. Uses ids, not port id
+        if not config.get("connections"):
+            config["connections"] = {}
+        for from_, tos_ in self.connections.items():
+            fromid_ = self.ports[from_]["label"]
+            if fromid_ not in config["connections"]:
+                config["connections"][fromid_] = [
+                    self.ports[to_]["label"] for to_ in tos_
+                ]
+            else:
+                for to_ in tos_:
+                    label = self.ports[to_]["label"]
+                    if label not in config["connections"][fromid_]:
+                        config["connections"][fromid_].append(
+                            label
+                        )
+        config.save()
+
     def connect(self, from_, to_):
         logger.info("Connect %s -> %s", from_, to_)
         sender = self.seq.parse_address(from_)
         receiver = self.seq.parse_address(to_)
-        print(sender, receiver)
         try:
             self.seq.get_connect_info(sender, receiver)
             logger.warning("Already connected %s -> %s", from_, to_)
             return False
         except Exception as e:
             pass  # not exist
-        self.seq.connect_ports(
-            sender,
-            receiver,
-            0,
-            0,
-            0,
-            0,
-        )
+        try:
+            self.seq.connect_ports(
+                sender,
+                receiver,
+                0,
+                0,
+                0,
+                0,
+            )
+        except Exception:
+            logger.error("Could not connect ports %s -> %s", from_, to_)
+            return False
         return True
 
     def disconnect(self, from_, to_):
@@ -348,17 +374,16 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
             type=self.SND_SEQ_PORT_TYPE_MIDI_GENERIC | self.SND_SEQ_PORT_TYPE_APPLICATION,
             caps=self.SND_SEQ_PORT_CAP_WRITE | self.SND_SEQ_PORT_CAP_SUBS_WRITE
         )
-        print(port)
         self.announcement_port = port
         self.connect("0:1", f"{self.seq.client_id}:{port}")
+
+        self.port_start(self.seq.client_id, port, clientname="aseqrc")
 
     def poll(self):
         eventlist = self.seq.receive_events(timeout=0, maxevents=16)
         for event in eventlist:
             type = event.type
             data = event.get_data()
-            print(type, event)
-            print(data)
             if type == alsaseq.SEQ_EVENT_PORT_START:
                 self.port_start(data["addr.client"], data["addr.port"])
             elif type == alsaseq.SEQ_EVENT_PORT_EXIT:
@@ -377,6 +402,8 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
                     to_clientid=data['connect.dest.client'],
                     to_portid=data['connect.dest.port'],
                 )
+            else:
+                print(type, data)
 
     def port_start(self, clientid, portid, clientname=None):
         portinfo = self.seq.get_port_info(portid, clientid)
@@ -384,6 +411,8 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         if not clientname:
             clientinfo = self.seq.get_client_info(clientid)
             clientname = clientinfo["name"]
+
+        logger.info("Port start %s:%s %s", clientid, portid, clientname)
 
         port = f"{clientid}:{portid}"
         name = f"{clientname} / {portinfo['name']}"
@@ -396,7 +425,33 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
             "label": name,
             "input": bool(input),
             "output": bool(output),
+            "hidden": clientid == self.seq.client_id or clientid <= 2
         }
+
+        self.check_connections(name)
+
+    def get_by_name(self, name):
+        return next((x for x in self.ports.values() if x["label"] == name), None)
+
+    def check_connections(self, portname):
+        for inputname, outputconns in config["connections"].items():
+            for outputname in outputconns:
+                if inputname == portname or outputname == portname:
+                    logger.info("Check port %s, match %s || %s",
+                                portname, inputname, outputname)
+                    output = self.get_by_name(outputname)
+                    input = self.get_by_name(inputname)
+                    if not input or not output:
+                        continue
+                    inputport = input["port"]
+                    outputport = output["port"]
+                    if outputport in self.ports.get(inputport, []):
+                        continue  # already connected
+                    logger.info(
+                        "Connect as previously known connection: %s -> %s",
+                        inputport, outputport
+                    )
+                    self.connect(inputport, outputport)
 
     def port_exit(self, clientid, portid):
         logger.info("Remove port %s:%s", clientid, portid)
@@ -405,13 +460,33 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         if port in self.ports:
             del self.ports[port]
 
+        if port in self.connections:
+            del self.connections[port]
+
+        conns = {}
+        for input, outputs in self.connections.items():
+            if port in outputs:
+                outputs = [x for x in outputs if x != port]
+            conns[input] = outputs
+        self.connections = conns
+
     def port_subscribed(self, *, from_clientid, from_portid, to_clientid, to_portid):
         from_ = f"{from_clientid}:{from_portid}"
         to_ = f"{to_clientid}:{to_portid}"
 
         if from_ not in self.connections:
             self.connections[from_] = []
-        self.connections[from_].append(to_)
+        if to_ not in self.connections[from_]:
+            self.connections[from_].append(to_)
+
+        from_ = self.ports[from_]["label"]
+        to_ = self.ports[to_]["label"]
+        if from_ not in config["connections"]:
+            config["connections"][from_] = []
+
+        if to_ not in config["connections"][from_]:
+            config["connections"][from_].append(to_)
+            config.save()
 
     def port_unsubscribed(self, *, from_clientid, from_portid, to_clientid, to_portid):
         from_ = f"{from_clientid}:{from_portid}"
@@ -422,9 +497,18 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
 
         self.connections[from_] = [
             x
-            for x in self.connections[from_]
+            for x in self.connections.get(from_, [])
             if x != to_
         ]
+
+        from_ = self.ports[from_]["label"]
+        to_ = self.ports[to_]["label"]
+        config["connections"][from_] = [
+            x
+            for x in config["connections"].get(from_, [])
+            if x != to_
+        ]
+        config.save()
 
 
 if PYALSA:

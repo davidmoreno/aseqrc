@@ -47,8 +47,8 @@ class App extends React.Component<{}, AppState> {
     const status = await api.get<StatusI>("status")
     this.setState({
       ports: status.ports,
-      inputs: Object.values(status.ports).filter((x: PortI) => x.input),
-      outputs: Object.values(status.ports).filter((x: PortI) => x.output),
+      inputs: Object.values(status.ports).filter((x: PortI) => !x.hidden && x.input),
+      outputs: Object.values(status.ports).filter((x: PortI) => !x.hidden && x.output),
       connections: status.connections,
     })
   }
@@ -88,7 +88,7 @@ class App extends React.Component<{}, AppState> {
                 <th className="p-24px md:min-w-400px" style={row_style(rown)}>{i.label}</th>
                 <td className="align-top">
                   <div className="flex flex-row md:flex-col flex-wrap">
-                    {(connections[i.id] || []).map((o, n) => (
+                    {(connections[i.id] || []).map((o, n) => !ports[o].hidden && (
                       <div key={o} className={`p-24px flex flex-row lg:min-w-400px br-1px bb-1px items-center ${(n & 1) == 0 ? "bg-blue-light" : ""}`}>
                         <span className="pr-10px w-full">{ports[o].label}</span>
                         <button className="min-w-45px" onClick={() => this.disconnect(i.id, o)}>✖</button>
@@ -97,7 +97,7 @@ class App extends React.Component<{}, AppState> {
                     <div className="p-24px lg:min-w-400px br-1px">
                       <select onChange={ev => this.connect(i.id, ev.target.value)} className="w-full">
                         <option>-- Select Input to Connect --</option>
-                        {outputs.filter(o => !includes(connections[i.id], o.id)).map(o => (
+                        {outputs.filter(o => !o.hidden && !includes(connections[i.id], o.id)).map(o => (
                           <option value={o.id} key={o.id}>{o.label}</option>
                         ))}
                       </select>
