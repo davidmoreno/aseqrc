@@ -106,17 +106,11 @@ config = Config(CONFIGFILE)
 
 class AlsaSequencerBase:
     def __init__(self):
+        self.lock = threading.Lock()
         self.ports = {}
         self.connections = {}  # id to id
-        self.update_all_ports()
 
-    def setup(self):
-        for from_, tos_ in config.get("connections", {}).items():
-            for to_ in tos_:
-                if from_ and to_:
-                    self.connect(from_, to_)
-
-    def update_all_ports(self):
+    def poll(self):
         raise NotImplemented()
 
 
@@ -130,6 +124,10 @@ class AlsaSequencerSh(AlsaSequencerBase):
 
     This code will disappear, but no python3-pyalsa in older ubuntu 18.04.
     """
+
+    def __init__(self):
+        super().__init__()
+        self.update_all_ports()
 
     def poll(self):
         self.update_all_ports()
@@ -284,13 +282,14 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
     SND_SEQ_PORT_CAP_WRITE = (1 << 1)
 
     def __init__(self):
+        super().__init__()
         self.seq = alsaseq.Sequencer(
             name="default",
             clientname="aseqrc",
             # streams=alsaseq.SEQ_OPEN_DUPLEX,
             # mode=alsaseq.SEQ_BLOCK,
         )
-        super().__init__()
+        self.update_all_ports()
 
         self.create_announcement_port()
         self.thread = threading.Thread(target=self.thread_poll)
@@ -301,6 +300,7 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
 
         self.ports = {}
         self.connections = {}
+
         for client in clients:
             clientname, clientid, ports = client
             clientinfo = self.seq.get_client_info(clientid)
@@ -391,6 +391,29 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
     def poll(self):
         pass
 
+    def get_by_name(self, name):
+        return next((x for x in self.ports.values() if x["label"] == name), None)
+
+    def check_connections(self, portname):
+        for inputname, outputconns in config["connections"].items():
+            for outputname in outputconns:
+                if inputname == portname or outputname == portname:
+                    logger.info("Check port %s, match %s || %s",
+                                portname, inputname, outputname)
+                    output = self.get_by_name(outputname)
+                    input = self.get_by_name(inputname)
+                    if not input or not output:
+                        continue
+                    inputport = input["port"]
+                    outputport = output["port"]
+                    if outputport in self.ports.get(inputport, []):
+                        continue  # already connected
+                    logger.info(
+                        "Connect as previously known connection: %s -> %s",
+                        inputport, outputport
+                    )
+                    self.connect(inputport, outputport)
+
     def thread_poll(self):
         while True:
             eventlist = self.seq.receive_events(timeout=1000, maxevents=16)
@@ -419,109 +442,90 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
                     print(type, data)
 
     def port_start(self, clientid, portid, clientname=None):
-        portinfo = self.seq.get_port_info(portid, clientid)
+        with self.lock:
+            portinfo = self.seq.get_port_info(portid, clientid)
 
-        if not clientname:
-            clientinfo = self.seq.get_client_info(clientid)
-            clientname = clientinfo["name"]
+            if not clientname:
+                clientinfo = self.seq.get_client_info(clientid)
+                clientname = clientinfo["name"]
 
-        logger.info("Port start %s:%s %s", clientid, portid, clientname)
+            logger.info("Port start %s:%s %s", clientid, portid, clientname)
 
-        port = f"{clientid}:{portid}"
-        name = f"{clientname} / {portinfo['name']}"
-        input = portinfo["capability"] & self.READ_MASK
-        output = portinfo["capability"] & self.WRITE_MASK
+            port = f"{clientid}:{portid}"
+            name = f"{clientname} / {portinfo['name']}"
+            input = portinfo["capability"] & self.READ_MASK
+            output = portinfo["capability"] & self.WRITE_MASK
 
-        self.ports[port] = {
-            "id": port,
-            "port": port,
-            "label": name,
-            "input": bool(input),
-            "output": bool(output),
-            "hidden": clientid == self.seq.client_id or clientid <= 2
-        }
+            self.ports[port] = {
+                "id": port,
+                "port": port,
+                "label": name,
+                "input": bool(input),
+                "output": bool(output),
+                "hidden": clientid == self.seq.client_id or clientid <= 2
+            }
 
-        self.check_connections(name)
-
-    def get_by_name(self, name):
-        return next((x for x in self.ports.values() if x["label"] == name), None)
-
-    def check_connections(self, portname):
-        for inputname, outputconns in config["connections"].items():
-            for outputname in outputconns:
-                if inputname == portname or outputname == portname:
-                    logger.info("Check port %s, match %s || %s",
-                                portname, inputname, outputname)
-                    output = self.get_by_name(outputname)
-                    input = self.get_by_name(inputname)
-                    if not input or not output:
-                        continue
-                    inputport = input["port"]
-                    outputport = output["port"]
-                    if outputport in self.ports.get(inputport, []):
-                        continue  # already connected
-                    logger.info(
-                        "Connect as previously known connection: %s -> %s",
-                        inputport, outputport
-                    )
-                    self.connect(inputport, outputport)
+            self.check_connections(name)
 
     def port_exit(self, clientid, portid):
-        logger.info("Remove port %s:%s", clientid, portid)
+        with self.lock:
+            logger.info("Remove port %s:%s", clientid, portid)
 
-        port = f"{clientid}:{portid}"
-        if port in self.ports:
-            del self.ports[port]
+            port = f"{clientid}:{portid}"
+            if port in self.ports:
+                del self.ports[port]
 
-        if port in self.connections:
-            del self.connections[port]
+            if port in self.connections:
+                del self.connections[port]
 
-        conns = {}
-        for input, outputs in self.connections.items():
-            if port in outputs:
-                outputs = [x for x in outputs if x != port]
-            conns[input] = outputs
-        self.connections = conns
+            conns = {}
+            for input, outputs in self.connections.items():
+                if port in outputs:
+                    outputs = [x for x in outputs if x != port]
+                conns[input] = outputs
+            self.connections = conns
 
     def port_subscribed(self, *, from_clientid, from_portid, to_clientid, to_portid):
-        from_ = f"{from_clientid}:{from_portid}"
-        to_ = f"{to_clientid}:{to_portid}"
+        with self.lock:
+            from_ = f"{from_clientid}:{from_portid}"
+            to_ = f"{to_clientid}:{to_portid}"
 
-        if from_ not in self.connections:
-            self.connections[from_] = []
-        if to_ not in self.connections[from_]:
-            self.connections[from_].append(to_)
+            if from_ not in self.connections:
+                self.connections[from_] = []
+            if to_ not in self.connections[from_]:
+                self.connections[from_].append(to_)
 
-        from_ = self.ports[from_]["label"]
-        to_ = self.ports[to_]["label"]
-        if from_ not in config["connections"]:
-            config["connections"][from_] = []
+            from_ = self.ports[from_]["label"]
+            to_ = self.ports[to_]["label"]
+            if from_ not in config["connections"]:
+                config["connections"][from_] = []
 
-        if to_ not in config["connections"][from_]:
-            config["connections"][from_].append(to_)
-            config.save()
+            if to_ not in config["connections"][from_]:
+                config["connections"][from_].append(to_)
+                config.save()
 
     def port_unsubscribed(self, *, from_clientid, from_portid, to_clientid, to_portid):
-        from_ = f"{from_clientid}:{from_portid}"
-        to_ = f"{to_clientid}:{to_portid}"
+        with self.lock:
+            from_ = f"{from_clientid}:{from_portid}"
+            to_ = f"{to_clientid}:{to_portid}"
 
-        if from_ not in self.connections:
-            return
+            if from_ not in self.connections:
+                return
 
-        self.connections[from_] = [
-            x
-            for x in self.connections.get(from_, [])
-            if x != to_
-        ]
+            self.connections[from_] = [
+                x
+                for x in self.connections.get(from_, [])
+                if x != to_
+            ]
 
-        from_ = self.ports[from_]["label"]
-        to_ = self.ports[to_]["label"]
-        config["connections"][from_] = [
-            x
-            for x in config["connections"].get(from_, [])
-            if x != to_
-        ]
-        config.save()
+            from_ = self.ports[from_]["label"]
+            to_ = self.ports[to_]["label"]
+            config["connections"][from_] = [
+                x
+                for x in config["connections"].get(from_, [])
+                if x != to_
+            ]
+            config.save()
 
 
 if PYALSA:
@@ -600,10 +604,11 @@ def favicon():
 def status():
     aseq.poll()
 
-    resp = flask.jsonify({
-        "ports": aseq.ports,
-        "connections": aseq.connections,
-    })
+    with aseq.lock:
+        resp = flask.jsonify({
+            "ports": aseq.ports,
+            "connections": aseq.connections,
+        })
     resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
     return resp
 
