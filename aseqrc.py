@@ -74,7 +74,6 @@ class Config:
         else:
             os.makedirs(os.path.dirname(CONFIGFILE), exist_ok=True)
             self.config = {
-                "hidden": ["System / Timer", "System / Announce"],
                 "name_to_port": {}
             }
 
@@ -100,10 +99,6 @@ class AlsaSequencerBase:
     def __init__(self):
         self.ports = {}
         self.connections = {}  # id to id
-        self.hidden = config.get(
-            "hidden", ["System / Timer", "System / Announce"]
-        )
-
         self.update_all_ports()
 
     def setup(self):
@@ -126,6 +121,9 @@ class AlsaSequencerSh(AlsaSequencerBase):
 
     This code will disappear, but no python3-pyalsa in older ubuntu 18.04.
     """
+
+    def poll(self):
+        self.update_all_ports()
 
     def update_all_ports(self):
         self.ports = {}  # each port: {id, label, port, input, output}
@@ -155,8 +153,6 @@ class AlsaSequencerSh(AlsaSequencerBase):
             if m:
                 label = m.group(2).strip()
                 label = f"{parent_name} / {label}"
-                if label in self.hidden:
-                    continue
                 port_id = m.group(1)
                 port = f"{parent_id}:{port_id}"
 
@@ -193,8 +189,6 @@ class AlsaSequencerSh(AlsaSequencerBase):
                 label = m.group(2).strip()
                 frms = []
                 name = f"{parent_name} / {label}"
-                if name in config["hidden_in"]:
-                    continue
                 port = f"{parent_id}:{port_id}"
                 ret[port] = frms
             m = RE_CONNECT_TO.match(line)
@@ -268,6 +262,11 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
     READ_MASK = 33  # manually calculated.segfault if use consts
     WRITE_MASK = 66
 
+    SND_SEQ_PORT_TYPE_MIDI_GENERIC = (1 << 1)
+    SND_SEQ_PORT_TYPE_APPLICATION = (1 << 20)
+    SND_SEQ_PORT_CAP_SUBS_WRITE = (1 << 6)
+    SND_SEQ_PORT_CAP_WRITE = (1 << 1)
+
     def __init__(self):
         self.seq = alsaseq.Sequencer(
             name="default",
@@ -276,6 +275,8 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
             # mode=alsaseq.SEQ_BLOCK,
         )
         super().__init__()
+
+        self.create_announcement_port()
 
     def update_all_ports(self):
         clients = self.seq.connection_list()
@@ -296,20 +297,9 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
 
             for port in ports:
                 portname, portid, conns = port
-                portinfo = self.seq.get_port_info(portid, clientid)
 
+                self.port_start(clientid, portid, clientname=clientname)
                 port = f"{clientid}:{portid}"
-                name = f"{clientname} / {portinfo['name']}"
-                input = portinfo["capability"] & self.READ_MASK
-                output = portinfo["capability"] & self.WRITE_MASK
-
-                self.ports[port] = {
-                    "id": port,
-                    "port": port,
-                    "label": name,
-                    "input": bool(input),
-                    "output": bool(output),
-                }
 
                 if input:
                     for conn in conns[1]:
@@ -351,6 +341,90 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
             return False
         self.seq.disconnect_ports(sender, receiver)
         return True
+
+    def create_announcement_port(self):
+        port = self.seq.create_simple_port(
+            name="aseqrc",
+            type=self.SND_SEQ_PORT_TYPE_MIDI_GENERIC | self.SND_SEQ_PORT_TYPE_APPLICATION,
+            caps=self.SND_SEQ_PORT_CAP_WRITE | self.SND_SEQ_PORT_CAP_SUBS_WRITE
+        )
+        print(port)
+        self.announcement_port = port
+        self.connect("0:1", f"{self.seq.client_id}:{port}")
+
+    def poll(self):
+        eventlist = self.seq.receive_events(timeout=0, maxevents=16)
+        for event in eventlist:
+            type = event.type
+            data = event.get_data()
+            print(type, event)
+            print(data)
+            if type == alsaseq.SEQ_EVENT_PORT_START:
+                self.port_start(data["addr.client"], data["addr.port"])
+            elif type == alsaseq.SEQ_EVENT_PORT_EXIT:
+                self.port_exit(data["addr.client"], data["addr.port"])
+            elif type == alsaseq.SEQ_EVENT_PORT_SUBSCRIBED:
+                self.port_subscribed(
+                    from_clientid=data['connect.sender.client'],
+                    from_portid=data['connect.sender.port'],
+                    to_clientid=data['connect.dest.client'],
+                    to_portid=data['connect.dest.port'],
+                )
+            elif type == alsaseq.SEQ_EVENT_PORT_UNSUBSCRIBED:
+                self.port_unsubscribed(
+                    from_clientid=data['connect.sender.client'],
+                    from_portid=data['connect.sender.port'],
+                    to_clientid=data['connect.dest.client'],
+                    to_portid=data['connect.dest.port'],
+                )
+
+    def port_start(self, clientid, portid, clientname=None):
+        portinfo = self.seq.get_port_info(portid, clientid)
+
+        if not clientname:
+            clientinfo = self.seq.get_client_info(clientid)
+            clientname = clientinfo["name"]
+
+        port = f"{clientid}:{portid}"
+        name = f"{clientname} / {portinfo['name']}"
+        input = portinfo["capability"] & self.READ_MASK
+        output = portinfo["capability"] & self.WRITE_MASK
+
+        self.ports[port] = {
+            "id": port,
+            "port": port,
+            "label": name,
+            "input": bool(input),
+            "output": bool(output),
+        }
+
+    def port_exit(self, clientid, portid):
+        logger.info("Remove port %s:%s", clientid, portid)
+
+        port = f"{clientid}:{portid}"
+        if port in self.ports:
+            del self.ports[port]
+
+    def port_subscribed(self, *, from_clientid, from_portid, to_clientid, to_portid):
+        from_ = f"{from_clientid}:{from_portid}"
+        to_ = f"{to_clientid}:{to_portid}"
+
+        if from_ not in self.connections:
+            self.connections[from_] = []
+        self.connections[from_].append(to_)
+
+    def port_unsubscribed(self, *, from_clientid, from_portid, to_clientid, to_portid):
+        from_ = f"{from_clientid}:{from_portid}"
+        to_ = f"{to_clientid}:{to_portid}"
+
+        if from_ not in self.connections:
+            return
+
+        self.connections[from_] = [
+            x
+            for x in self.connections[from_]
+            if x != to_
+        ]
 
 
 if PYALSA:
@@ -427,13 +501,11 @@ def favicon():
 
 @app.route("/status", methods=["GET", "POST"])
 def status():
-    aseq.update_all_ports()
+    aseq.poll()
 
     resp = flask.jsonify({
         "ports": aseq.ports,
         "connections": aseq.connections,
-        "hidden_in": config["hidden_in"],
-        "hidden_out": config["hidden_out"],
     })
     resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
     return resp
@@ -442,7 +514,11 @@ def status():
 def test():
     aseq.update_all_ports()
     print(aseq.ports)
-    aseq.connect("0:0", "0:0")
+    print(aseq.announcement_port)
+    import time
+    for x in range(10):
+        time.sleep(1)
+        aseq.poll()
 
 
 if __name__ == '__main__':
