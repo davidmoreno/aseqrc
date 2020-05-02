@@ -31,6 +31,7 @@ logger = logging.getLogger("aseqrc")
 
 try:
     from pyalsa import alsaseq
+    import threading
     PYALSA = True
 except:
     logger.warning(
@@ -265,6 +266,13 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
 
     This ensure that if a device disapears, it will be reconnected as last time. It follows
     the port names, not the id, as the id can change.
+
+    It uses threads to keep the connection list current, and connect new
+    clients as required. The writer is always the same thread, the thread_poller,
+    and the reader might be both. 
+
+    Because of the cpython lock we are sure reads are complete and they might
+    not be wrong cases with inconsistent data.
     """
 
     READ_MASK = 33  # manually calculated.segfault if use consts
@@ -285,6 +293,8 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         super().__init__()
 
         self.create_announcement_port()
+        self.thread = threading.Thread(target=self.thread_poll)
+        self.thread.start()
 
     def update_all_ports(self):
         clients = self.seq.connection_list()
@@ -359,7 +369,6 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         logger.info("Disconnect %s -> %s", from_, to_)
         sender = self.seq.parse_address(from_)
         receiver = self.seq.parse_address(to_)
-        print(sender, receiver)
         try:
             self.seq.get_connect_info(sender, receiver)
         except Exception as e:
@@ -380,30 +389,34 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         self.port_start(self.seq.client_id, port, clientname="aseqrc")
 
     def poll(self):
-        eventlist = self.seq.receive_events(timeout=0, maxevents=16)
-        for event in eventlist:
-            type = event.type
-            data = event.get_data()
-            if type == alsaseq.SEQ_EVENT_PORT_START:
-                self.port_start(data["addr.client"], data["addr.port"])
-            elif type == alsaseq.SEQ_EVENT_PORT_EXIT:
-                self.port_exit(data["addr.client"], data["addr.port"])
-            elif type == alsaseq.SEQ_EVENT_PORT_SUBSCRIBED:
-                self.port_subscribed(
-                    from_clientid=data['connect.sender.client'],
-                    from_portid=data['connect.sender.port'],
-                    to_clientid=data['connect.dest.client'],
-                    to_portid=data['connect.dest.port'],
-                )
-            elif type == alsaseq.SEQ_EVENT_PORT_UNSUBSCRIBED:
-                self.port_unsubscribed(
-                    from_clientid=data['connect.sender.client'],
-                    from_portid=data['connect.sender.port'],
-                    to_clientid=data['connect.dest.client'],
-                    to_portid=data['connect.dest.port'],
-                )
-            else:
-                print(type, data)
+        pass
+
+    def thread_poll(self):
+        while True:
+            eventlist = self.seq.receive_events(timeout=1000, maxevents=16)
+            for event in eventlist:
+                type = event.type
+                data = event.get_data()
+                if type == alsaseq.SEQ_EVENT_PORT_START:
+                    self.port_start(data["addr.client"], data["addr.port"])
+                elif type == alsaseq.SEQ_EVENT_PORT_EXIT:
+                    self.port_exit(data["addr.client"], data["addr.port"])
+                elif type == alsaseq.SEQ_EVENT_PORT_SUBSCRIBED:
+                    self.port_subscribed(
+                        from_clientid=data['connect.sender.client'],
+                        from_portid=data['connect.sender.port'],
+                        to_clientid=data['connect.dest.client'],
+                        to_portid=data['connect.dest.port'],
+                    )
+                elif type == alsaseq.SEQ_EVENT_PORT_UNSUBSCRIBED:
+                    self.port_unsubscribed(
+                        from_clientid=data['connect.sender.client'],
+                        from_portid=data['connect.sender.port'],
+                        to_clientid=data['connect.dest.client'],
+                        to_portid=data['connect.dest.port'],
+                    )
+                else:
+                    print(type, data)
 
     def port_start(self, clientid, portid, clientname=None):
         portinfo = self.seq.get_port_info(portid, clientid)
