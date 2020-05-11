@@ -109,6 +109,7 @@ class AlsaSequencerBase:
         self.lock = threading.Lock()
         self.ports = {}
         self.connections = {}  # id to id
+        self.events = []
 
     def poll(self):
         raise NotImplemented()
@@ -292,6 +293,7 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         self.update_all_ports()
 
         self.create_announcement_port()
+        self.create_monitor_port()
         self.thread = threading.Thread(target=self.thread_poll)
         self.thread.start()
 
@@ -379,7 +381,7 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
 
     def create_announcement_port(self):
         port = self.seq.create_simple_port(
-            name="aseqrc",
+            name="ann",
             type=self.SND_SEQ_PORT_TYPE_MIDI_GENERIC | self.SND_SEQ_PORT_TYPE_APPLICATION,
             caps=self.SND_SEQ_PORT_CAP_WRITE | self.SND_SEQ_PORT_CAP_SUBS_WRITE
         )
@@ -387,6 +389,26 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         self.connect("0:1", f"{self.seq.client_id}:{port}")
 
         self.port_start(self.seq.client_id, port, clientname="aseqrc")
+
+    def create_monitor_port(self):
+        port = self.seq.create_simple_port(
+            name="monitor",
+            type=self.SND_SEQ_PORT_TYPE_MIDI_GENERIC | self.SND_SEQ_PORT_TYPE_APPLICATION,
+            caps=self.SND_SEQ_PORT_CAP_WRITE | self.SND_SEQ_PORT_CAP_SUBS_WRITE
+        )
+        self.monitor_port = port
+        self.monitor_from = None
+        self.connect("0:1", f"{self.seq.client_id}:{port}")
+
+        self.port_start(self.seq.client_id, port, clientname="aseqrc")
+
+    def monitor(self, from_):
+        monport = f"{self.seq.client_id}:{self.monitor_port}"
+        if self.monitor_from:
+            self.disconnect(self.monitor_from, monport)
+
+        if from_:
+            self.connect(from_, monport)
 
     def poll(self):
         pass
@@ -418,6 +440,7 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         while True:
             eventlist = self.seq.receive_events(timeout=1000, maxevents=16)
             for event in eventlist:
+                print(event)
                 type = event.type
                 data = event.get_data()
                 if type == alsaseq.SEQ_EVENT_PORT_START:
@@ -600,7 +623,7 @@ def favicon():
     return flask.redirect("/static/icons/icon-128x128.png")
 
 
-@app.route("/status", methods=["GET", "POST"])
+@app.route("/status", methods=["GET"])
 def status():
     aseq.poll()
 
@@ -610,6 +633,22 @@ def status():
             "connections": aseq.connections,
         })
     resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+    return resp
+
+
+@app.route("/monitor", methods=["GET", "POST"])
+def monitor():
+    # aseq.poll()
+    if flask.request.method == "POST":
+        to_ = flask.request.json["to"]
+        aseq.monitor(to_)
+
+    with aseq.lock:
+        resp = flask.jsonify({
+            "events": aseq.events,
+        })
+    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
+
     return resp
 
 
