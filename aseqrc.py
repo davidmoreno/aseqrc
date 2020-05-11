@@ -25,13 +25,13 @@ import sys
 import hashlib
 import json
 import logging
+import threading
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)-8s:%(message)s',)
 logger = logging.getLogger("aseqrc")
 
 try:
     from pyalsa import alsaseq
-    import threading
     PYALSA = True
 except:
     logger.warning(
@@ -267,7 +267,7 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
 
     It uses threads to keep the connection list current, and connect new
     clients as required. The writer is always the same thread, the thread_poller,
-    and the reader might be both. 
+    and the reader might be both.
 
     Because of the cpython lock we are sure reads are complete and they might
     not be wrong cases with inconsistent data.
