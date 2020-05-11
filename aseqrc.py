@@ -43,12 +43,12 @@ except:
 PATH = os.path.realpath(os.path.dirname(__file__))
 if PATH == '/usr/share/aseqrc/':
     CONFIGFILE = '/var/lib/aseqrc/current.json'
-    DEBUG = False
 else:
     CONFIGFILE = os.path.expanduser(
         "~/.config/aseqrc/current.json"
     )
-    DEBUG = True
+
+DEBUG = bool(os.environ.get("DEBUG"))
 
 
 def to_bool(x):
@@ -282,6 +282,16 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
     SND_SEQ_PORT_CAP_SUBS_WRITE = (1 << 6)
     SND_SEQ_PORT_CAP_WRITE = (1 << 1)
 
+    SEQ_EVENT_NOTEON = alsaseq.SEQ_EVENT_NOTEON
+    SEQ_EVENT_NOTEOFF = alsaseq.SEQ_EVENT_NOTEOFF
+    SEQ_EVENT_NOTE = alsaseq.SEQ_EVENT_NOTE
+
+    MONITOR_EVENTS = {
+        alsaseq.SEQ_EVENT_NOTEON: "noteon",
+        alsaseq.SEQ_EVENT_NOTEOFF: "noteoff",
+        alsaseq.SEQ_EVENT_NOTE: "note",
+    }
+
     def __init__(self):
         super().__init__()
         self.seq = alsaseq.Sequencer(
@@ -290,10 +300,12 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
             # streams=alsaseq.SEQ_OPEN_DUPLEX,
             # mode=alsaseq.SEQ_BLOCK,
         )
-        self.update_all_ports()
+        self.event_count = 0
+        self.monitor_from = None
 
-        self.create_announcement_port()
-        self.create_monitor_port()
+        self.update_all_ports()
+        self.create_port()
+
         self.thread = threading.Thread(target=self.thread_poll)
         self.thread.start()
 
@@ -379,34 +391,24 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         self.seq.disconnect_ports(sender, receiver)
         return True
 
-    def create_announcement_port(self):
+    def create_port(self):
         port = self.seq.create_simple_port(
             name="ann",
             type=self.SND_SEQ_PORT_TYPE_MIDI_GENERIC | self.SND_SEQ_PORT_TYPE_APPLICATION,
             caps=self.SND_SEQ_PORT_CAP_WRITE | self.SND_SEQ_PORT_CAP_SUBS_WRITE
         )
-        self.announcement_port = port
-        self.connect("0:1", f"{self.seq.client_id}:{port}")
-
-        self.port_start(self.seq.client_id, port, clientname="aseqrc")
-
-    def create_monitor_port(self):
-        port = self.seq.create_simple_port(
-            name="monitor",
-            type=self.SND_SEQ_PORT_TYPE_MIDI_GENERIC | self.SND_SEQ_PORT_TYPE_APPLICATION,
-            caps=self.SND_SEQ_PORT_CAP_WRITE | self.SND_SEQ_PORT_CAP_SUBS_WRITE
-        )
-        self.monitor_port = port
-        self.monitor_from = None
+        self.port = port
         self.connect("0:1", f"{self.seq.client_id}:{port}")
 
         self.port_start(self.seq.client_id, port, clientname="aseqrc")
 
     def monitor(self, from_):
-        monport = f"{self.seq.client_id}:{self.monitor_port}"
+        monport = f"{self.seq.client_id}:{self.port}"
+        self.events = []
         if self.monitor_from:
             self.disconnect(self.monitor_from, monport)
 
+        self.monitor_from = from_
         if from_:
             self.connect(from_, monport)
 
@@ -440,7 +442,6 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         while True:
             eventlist = self.seq.receive_events(timeout=1000, maxevents=16)
             for event in eventlist:
-                print(event)
                 type = event.type
                 data = event.get_data()
                 if type == alsaseq.SEQ_EVENT_PORT_START:
@@ -461,8 +462,17 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
                         to_clientid=data['connect.dest.client'],
                         to_portid=data['connect.dest.port'],
                     )
+                elif type in AlsaSequencerPyAlsa.MONITOR_EVENTS:
+                    jevent = {
+                        "id": self.event_count,
+                        "type": AlsaSequencerPyAlsa.MONITOR_EVENTS[type],
+                        "data": data,
+                    }
+                    self.event_count += 1
+                    with self.lock:
+                        self.events.insert(0, jevent)
                 else:
-                    print(type, data)
+                    logger.info("Unknown event: %s", type)
 
     def port_start(self, clientid, portid, clientname=None):
         with self.lock:
@@ -609,16 +619,13 @@ def manifestjson():
     return flask.redirect("/static/manifest.json")
 
 
-index_html_cache = open("static/index.html", 'rt').read()
-
-
 @app.route("/index.html", methods=["GET"])
 @app.route("/", methods=["GET"])
 def index():
-    return index_html_cache
+    return open("static/index.html", 'rt').read()
 
 
-@app.route("/favicon.ico", methods=["GET", "POST"])
+@app.route("/favicon.ico", methods=["GET"])
 def favicon():
     return flask.redirect("/static/icons/icon-128x128.png")
 
@@ -640,8 +647,10 @@ def status():
 def monitor():
     # aseq.poll()
     if flask.request.method == "POST":
-        to_ = flask.request.json["to"]
-        aseq.monitor(to_)
+        print(flask.request.json)
+        from_ = flask.request.json["from"]
+        aseq.monitor(from_)
+        return {"details": "OK"}
 
     with aseq.lock:
         resp = flask.jsonify({
@@ -655,7 +664,7 @@ def monitor():
 def test():
     aseq.update_all_ports()
     print(aseq.ports)
-    print(aseq.announcement_port)
+    print(aseq.port)
     import time
     for x in range(10):
         time.sleep(1)

@@ -149,12 +149,24 @@ input:hover {
     align-self: end;
 }
 
+.align-right {
+    text-align: right;
+}
+
 .bg-orange {
     background-color: #ffa431;
 }
 
 .text-black {
     color: black;
+}
+
+.text-xs {
+    font-size: 0.8rem;
+}
+
+.uppercase {
+    text-transform: uppercase;
 }
 
 @media screen and (max-device-width: 1000px) {

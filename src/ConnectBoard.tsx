@@ -14,6 +14,7 @@ interface ConnectBoardState {
   inputs: PortI[];
   outputs: PortI[];
   connections: Record<PortId, PortId[]>;
+  timer: number;
 }
 
 function includes(list: string[] | undefined, item: string): boolean {
@@ -37,13 +38,19 @@ class ConnectBoard extends React.Component<ConnectBoardProps, ConnectBoardState>
     outputs: [],
     connections: {},
     ports: [],
+    timer: 0,
   }
 
   async componentDidMount() {
     await this.reloadStatus()
 
     // May be set to unmount, but unmount is get out so ...
-    setInterval(this.reloadStatus.bind(this), 5000)
+    const timer = setInterval(this.reloadStatus.bind(this), 5000)
+    this.setState({timer})
+  }
+
+  componentWillUnmount(){
+    clearInterval(this.state.timer)
   }
 
   async reloadStatus() {
