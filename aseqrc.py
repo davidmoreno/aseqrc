@@ -290,6 +290,9 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
         alsaseq.SEQ_EVENT_NOTEON: "noteon",
         alsaseq.SEQ_EVENT_NOTEOFF: "noteoff",
         alsaseq.SEQ_EVENT_NOTE: "note",
+        alsaseq.SEQ_EVENT_CONTROLLER: "cc",
+        alsaseq.SEQ_EVENT_PITCHBEND: "pitch bend",
+        alsaseq.SEQ_EVENT_PGMCHANGE: "program change",
     }
 
     def __init__(self):

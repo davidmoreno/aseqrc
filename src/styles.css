@@ -169,6 +169,10 @@ input:hover {
     text-transform: uppercase;
 }
 
+.fade{
+    filter: grayscale(50%);
+}
+
 @media screen and (max-device-width: 1000px) {
     .md\:flex-col {
         flex-direction: column;
