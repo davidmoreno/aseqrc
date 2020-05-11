@@ -30,6 +30,8 @@ import threading
 logging.basicConfig(level=logging.INFO, format='%(levelname)-8s:%(message)s',)
 logger = logging.getLogger("aseqrc")
 
+MAX_EVENTS = 100
+
 try:
     from pyalsa import alsaseq
     PYALSA = True
@@ -473,6 +475,7 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
                     }
                     self.event_count += 1
                     with self.lock:
+                        self.events = self.events[:MAX_EVENTS]
                         self.events.insert(0, jevent)
                 else:
                     logger.info("Unknown event: %s", type)
@@ -653,7 +656,7 @@ def monitor():
         print(flask.request.json)
         from_ = flask.request.json["from"]
         aseq.monitor(from_)
-        return {"details": "OK"}
+        return flask.jsonify({"details": "OK"})
 
     with aseq.lock:
         resp = flask.jsonify({
