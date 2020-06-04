@@ -1,4 +1,4 @@
-# Automatically added by dh_usrlocal/12.6.1ubuntu2
+# Automatically added by dh_usrlocal/12.10ubuntu1
 if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ]; then
 (
 	default_mode=0755
