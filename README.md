@@ -11,8 +11,13 @@ the browser.
 
 After installation it is available at http://IP:5000 and can be installed as a PWA.
 
-![Patch screen](screenshot1.png | width=250)
-![Monitor screen](screenshot2.png | width=250)
+<a href="https://raw.githubusercontent.com/davidmoreno/aseqrc/master/screenshot1.png">
+  <img src="https://raw.githubusercontent.com/davidmoreno/aseqrc/master/screenshot1.png" width="256"/>
+</a>
+<a href="https://raw.githubusercontent.com/davidmoreno/aseqrc/master/screenshot2.png">
+  <img src="https://raw.githubusercontent.com/davidmoreno/aseqrc/master/screenshot2.png" width="256"/>
+</a>
+
 
 # Use
 
