@@ -1,3 +1,11 @@
+aseqrc (20.06) unstable; urgency=medium
+
+  * Monitoring
+  * All around improvements
+
+ -- David Moreno <dmoreno@coralbits.com>  Thu, 04 Jun 2020 23:34:14 +0200
+
+
 aseqrc (20.04) unstable; urgency=medium
 
   * Initial Release.
