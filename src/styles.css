@@ -192,6 +192,10 @@ input:hover {
     align-items: center;
 }
 
+.text-center {
+    text-align: center;
+}
+
 .align-top {
     vertical-align: top;
 }
