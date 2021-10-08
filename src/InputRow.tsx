@@ -32,7 +32,7 @@ const InputRow = (props: DeviceRowI) => {
   return (
     <tr key={input.id} className="md:flex md:flex-col">
       <th className="h-full p-10px" style={row_style(deviceid)}>
-        <div className="flex flex-row items-center md:min-w-400px h-full">
+        <div className="flex flex-row items-center md:min-w-400px h-full with-sidetag">
           <div className="sidetag">{input.device_label}</div>
           <div className="flex-1 py-24px">
             {renamed_name(input.label, input.port_label)}
