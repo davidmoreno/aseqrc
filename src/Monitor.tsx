@@ -1,23 +1,23 @@
-import React from 'react'
-import { row_style } from './colors'
-import api from './api'
+import React from "react"
+import { row_style } from "./utils"
+import api from "./api"
 
 interface MonitorProps {
-  onClose: () => any;
-  from: string;
+  onClose: () => any
+  from: string
 }
 
 interface EventI {
-  id: number;
-  type: string;
-  data: any;
+  id: number
+  type: string
+  data: any
 }
 
 interface MonitorState {
-  events: EventI[];
-  timer: number;
-  last: number;
-  prevlast: number;
+  events: EventI[]
+  timer: number
+  last: number
+  prevlast: number
 }
 
 const CC_NAMES = {
@@ -86,21 +86,21 @@ const CC_NAMES = {
 }
 
 function evcolor(event: any) {
-  switch(event.type){
+  switch (event.type) {
     case "noteon":
-      return row_style(0);
-    break;
+      return row_style(0)
+      break
     case "noteoff":
-      return row_style(1);
-    break;
+      return row_style(1)
+      break
     case "note":
-      return row_style(2);
+      return row_style(2)
     case "cc":
       return row_style(event.data["control.param"])
     case "pitch bend":
-      return row_style(3);
-    }
-  return row_style(4);
+      return row_style(3)
+  }
+  return row_style(4)
 }
 
 class Monitor extends React.Component<MonitorProps> {
@@ -112,24 +112,24 @@ class Monitor extends React.Component<MonitorProps> {
   }
 
   async componentDidMount() {
-    await api.post("monitor", {from: this.props.from})
+    await api.post("monitor", { from: this.props.from })
     await this.reloadEvents()
     const timer = setInterval(this.reloadEvents.bind(this), 1000)
-    this.setState({timer})
+    this.setState({ timer })
   }
 
-  async componentWillUnmount(){
+  async componentWillUnmount() {
     clearInterval(this.state.timer)
-    await api.post("monitor", {from: null})
+    await api.post("monitor", { from: null })
   }
 
-  async reloadEvents(){
+  async reloadEvents() {
     const events = await api.get("monitor")
-    this.setState({events: events.events})
+    this.setState({ events: events.events })
     const prevlast = this.state.last
     const last = events.events.length ? events.events[0].id : 0
     if (prevlast !== last) {
-      this.setState({prevlast, last})
+      this.setState({ prevlast, last })
     }
   }
 
@@ -141,36 +141,43 @@ class Monitor extends React.Component<MonitorProps> {
         <div className="bg-orange p-10px">
           <button className="bg-orange p-10px" onClick={this.props.onClose}>
             &lt; Back
-        </button>
+          </button>
         </div>
         <table className="w-full uppercase">
           <thead>
             <tr>
-            <th className="p-10px">
-                Id
-              </th>
-              <th className="p-10px">
-                Type
-              </th>
+              <th className="p-10px">Id</th>
+              <th className="p-10px">Type</th>
               <th className="p-10px" colSpan={10}>
                 Data
               </th>
             </tr>
           </thead>
           <tbody>
-            {this.state.events.map( (ev, n) => (
-              <tr style={evcolor(ev)} className={ev.id <= prevlast ? "fade" : ""} key={n}>
+            {this.state.events.map((ev, n) => (
+              <tr
+                style={evcolor(ev)}
+                className={ev.id <= prevlast ? "fade" : ""}
+                key={n}
+              >
                 <td>{ev.id}</td>
                 <td className="p-10px align-right">{ev.type}</td>
-                {Object.keys(ev.data).map( k => k === "control.param" ? (
-                  <td className="p-10px" key={k}><span className="text-xs">{k.split('.')[1]}:</span> <b>{ev.data[k]}</b> {CC_NAMES[ev.data[k]]}</td>
-                ) : (
-                  <td className="p-10px" key={k}><span className="text-xs">{k.split('.')[1]}:</span> <b>{ev.data[k]}</b></td>
-                ))}
+                {Object.keys(ev.data).map((k) =>
+                  k === "control.param" ? (
+                    <td className="p-10px" key={k}>
+                      <span className="text-xs">{k.split(".")[1]}:</span>{" "}
+                      <b>{ev.data[k]}</b> {CC_NAMES[ev.data[k]]}
+                    </td>
+                  ) : (
+                    <td className="p-10px" key={k}>
+                      <span className="text-xs">{k.split(".")[1]}:</span>{" "}
+                      <b>{ev.data[k]}</b>
+                    </td>
+                  )
+                )}
               </tr>
             ))}
           </tbody>
-
         </table>
       </>
     )

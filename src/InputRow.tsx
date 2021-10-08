@@ -1,6 +1,6 @@
 import React from "react"
 
-import { row_style } from "./colors"
+import { renamed_name, row_style } from "./utils"
 import Connection from "./Connection"
 import { PortI, PortId } from "./connection"
 
@@ -12,6 +12,7 @@ interface DeviceRowI {
   setMonitor(mon: string): void
   connect(orig: string, dest: string): Promise<void>
   disconnect(orig: string, dest: string): Promise<void>
+  setup(port: PortI): void
 }
 
 function includes(list: string[] | undefined, item: string): boolean {
@@ -28,21 +29,24 @@ const InputRow = (props: DeviceRowI) => {
   const { input, connections, ports, outputs } = props
 
   const deviceid = input.id.split(":")[0]
-
   return (
     <tr key={input.id} className="md:flex md:flex-col">
       <th className="h-full p-10px" style={row_style(deviceid)}>
         <div className="flex flex-row items-center md:min-w-400px h-full">
           <div className="sidetag">{input.device_label}</div>
-          <div className="flex-1 py-24px">{input.port_label}</div>
+          <div className="flex-1 py-24px">
+            {renamed_name(input.label, input.port_label)}
+          </div>
           <div className="flex flex-col">
-            {/* <button
-              className="align-end mb-20px"
-              style={row_style(deviceid)}
-              onClick={() => props.setMonitor(input.port)}
-            >
-              &#9881;
-            </button> */}
+            {
+              <button
+                className="align-end mb-20px"
+                style={row_style(deviceid)}
+                onClick={() => props.setup(input)}
+              >
+                &#9881;
+              </button>
+            }
 
             <button
               className="align-end shadow"

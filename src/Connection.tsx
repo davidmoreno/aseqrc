@@ -1,5 +1,6 @@
 import React from "react"
 import { PortI } from "./connection"
+import { renamed_name } from "./utils"
 
 interface ConnectionI {
   input: PortI
@@ -19,7 +20,7 @@ const Connection = (props: ConnectionI) =>
     >
       <span className="sidetag">{props.port.device_label}</span>
       <span className="pr-10px w-full text-center">
-        {props.port.port_label}
+        {renamed_name(props.port.label, props.port.port_label)}
       </span>
       <button
         className="min-w-45px"

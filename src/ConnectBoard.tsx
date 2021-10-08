@@ -2,6 +2,7 @@ import React from "react"
 import api from "./api"
 import { PortId, PortI } from "./connection"
 import InputRow from "./InputRow"
+import { renamed_name } from "./utils"
 
 interface StatusI {
   ports: PortI[]
@@ -75,6 +76,21 @@ class ConnectBoard extends React.Component<
     await this.reloadStatus()
   }
 
+  setup(port: PortI) {
+    let name = prompt(
+      `Setup name for port (${port.port_label})`,
+      renamed_name(port.label, port.port_label)
+    )
+    if (name === undefined) {
+      return
+    }
+    if (name === "") {
+      name = port.port_label
+    }
+    const renames = JSON.parse(localStorage.renames || "{}")
+    localStorage.renames = JSON.stringify({ ...renames, [port.label]: name })
+  }
+
   render() {
     const { inputs, outputs, connections, ports } = this.state
 
@@ -98,6 +114,7 @@ class ConnectBoard extends React.Component<
                 connect={this.connect.bind(this)}
                 disconnect={this.disconnect.bind(this)}
                 setMonitor={this.props.setMonitor}
+                setup={this.setup.bind(this)}
               />
             ))}
           </tbody>
