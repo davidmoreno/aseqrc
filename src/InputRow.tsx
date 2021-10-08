@@ -8,6 +8,9 @@ interface DeviceRowI {
   input: PortI
   outputs: PortI[]
   connections: Record<PortId, PortId[]>
+  setMonitor(mon: string): void
+  connect(orig: string, dest: string): Promise<void>
+  disconnect(orig: string, dest: string): Promise<void>
 }
 
 function includes(list: string[] | undefined, item: string): boolean {
@@ -20,7 +23,7 @@ function includes(list: string[] | undefined, item: string): boolean {
   return false
 }
 
-export function InputRow(props: DeviceRowI) {
+const InputRow = (props: DeviceRowI) => {
   const { input, connections, ports, outputs } = props
 
   const deviceid = input.id.split(":")[0]
@@ -35,7 +38,7 @@ export function InputRow(props: DeviceRowI) {
             {/* <button
               className="align-end mb-20px"
               style={row_style(deviceid)}
-              onClick={() => this.props.setMonitor(input.port)}
+              onClick={() => props.setMonitor(input.port)}
             >
               &#9881;
             </button> */}
@@ -43,7 +46,7 @@ export function InputRow(props: DeviceRowI) {
             <button
               className="align-end shadow"
               style={row_style(deviceid)}
-              onClick={() => this.props.setMonitor(input.port)}
+              onClick={() => props.setMonitor(input.port)}
             >
               Monitor
             </button>
@@ -64,7 +67,7 @@ export function InputRow(props: DeviceRowI) {
                   <span className="pr-10px w-full">{ports[o].label}</span>
                   <button
                     className="min-w-45px"
-                    onClick={() => this.disconnect(input.id, o)}
+                    onClick={() => props.disconnect(input.id, o)}
                   >
                     ✖
                   </button>
@@ -73,7 +76,7 @@ export function InputRow(props: DeviceRowI) {
           )}
           <div className="p-24px lg:min-w-400px br-1px">
             <select
-              onChange={(ev) => this.connect(input.id, ev.target.value)}
+              onChange={(ev) => props.connect(input.id, ev.target.value)}
               className="w-full"
             >
               <option>-- Select Input to Connect --</option>
@@ -93,3 +96,5 @@ export function InputRow(props: DeviceRowI) {
     </tr>
   )
 }
+
+export default InputRow

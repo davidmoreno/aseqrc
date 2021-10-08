@@ -1,7 +1,7 @@
 import React from "react"
 import api from "./api"
 import { PortId, PortI } from "./connection"
-import { InputRow } from "./InputRow"
+import InputRow from "./InputRow"
 
 interface StatusI {
   ports: PortI[]
@@ -95,6 +95,9 @@ class ConnectBoard extends React.Component<
                 connections={connections}
                 ports={ports}
                 outputs={outputs}
+                connect={this.connect.bind(this)}
+                disconnect={this.disconnect.bind(this)}
+                setMonitor={this.props.setMonitor}
               />
             ))}
           </tbody>
