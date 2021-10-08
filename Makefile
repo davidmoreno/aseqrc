@@ -4,6 +4,7 @@ all:
 	@echo "install -- Installs and enable service. Uses DESTDIR"
 	@echo "build   -- Builds the React frontend"
 	@echo "deb     -- Creates a debian package"
+	@echo "serve   -- Run parcel in serve mode,. to iterate on frontend development"
 
 DESTDIR:=/
 
@@ -32,6 +33,12 @@ build: node_modules
 
 run:
 	./aseqrc.py
+
+serve:
+	@echo
+	@echo 'Remember to run main program in another terminal, access at http://localhost:5000'
+	@echo
+	${PARCEL} serve src/index.html -d static --public-url /static/
 
 deb: clean
 	dpkg-buildpackage --no-sign -d

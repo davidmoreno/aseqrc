@@ -572,13 +572,17 @@ if PYALSA:
 else:
     aseq = AlsaSequencerSh()
 
+@app.after_request
+def set_access_control(response):
+    response.headers["Access-Control-Allow-Headers"] = 'Content-Type'
+    response.headers["Access-Control-Allow-Origin"] = HOSTNAME
+
+    return response
 
 @app.route("/connect", methods=["POST", "OPTIONS"])
 def connect_api():
     if flask.request.method != "POST":
         resp = flask.jsonify({"detail": "Nothing to do"})
-        resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-        resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
         return resp
 
     from_ = flask.request.json["from"]
@@ -589,8 +593,6 @@ def connect_api():
         resp = flask.jsonify({"detail": "Done"})
     else:
         resp = flask.jsonify({"detail": errors})
-    resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
     return resp
 
 
@@ -598,8 +600,6 @@ def connect_api():
 def disconnect_api():
     if flask.request.method != "POST":
         resp = flask.jsonify({"detail": "Nothing to do"})
-        resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-        resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
         return resp
 
     from_ = flask.request.json["from"]
@@ -610,8 +610,6 @@ def disconnect_api():
         resp = flask.jsonify({"detail": "Done"})
     else:
         resp = flask.jsonify({"detail": errors})
-    resp.headers["Access-Control-Allow-Headers"] = 'Content-Type'
-    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
     return resp
 
 
@@ -645,7 +643,6 @@ def status():
             "ports": aseq.ports,
             "connections": aseq.connections,
         })
-    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
     return resp
 
 
@@ -662,7 +659,6 @@ def monitor():
         resp = flask.jsonify({
             "events": aseq.events,
         })
-    resp.headers["Access-Control-Allow-Origin"] = HOSTNAME
 
     return resp
 
