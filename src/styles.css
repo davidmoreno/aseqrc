@@ -238,28 +238,29 @@ input:hover {
     position: relative;
 }
 
-.sidetag {
+.sidetag, .sidetag-70 {
     position: absolute;
-    top: 80px;
-    left: -50px;
-    font-size: 0.8em;
-    max-width: 80px;
-    padding-top: 10px;
-
     transform-origin: 0 0;
     transform: rotate(-90deg);
+    padding-top: 10px;
+    font-size: 0.8em;
+    left: -50px;
+    text-align: center;
+    overflow: hidden;
+    word-wrap: break-word;
+    -webkit-line-clamp: 2;
+}
+
+.sidetag {
+    top: 80px;
+    max-width: 80px;
 }
 
 .sidetag-70 {
-    position: absolute;
     top: 70px;
-    left: -50px;
-    font-size: 0.8em;
     max-width: 70px;
-    padding-top: 10px;
-
-    transform-origin: 0 0;
-    transform: rotate(-90deg);
+    font-size: 0.7em;
+    left: -45px;
 }
 
 @media screen and (max-device-width: 1000px) {

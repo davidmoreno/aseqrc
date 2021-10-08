@@ -82,7 +82,7 @@ const InputRow = (props: DeviceRowI) => {
                 )
                 .map((o) => (
                   <option value={o.id} key={o.id}>
-                    {o.label}
+                    {o.device_label} / {renamed_name(o.label, o.port_label)}
                   </option>
                 ))}
             </select>
