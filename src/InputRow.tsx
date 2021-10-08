@@ -28,15 +28,26 @@ export function InputRow(props: DeviceRowI) {
   return (
     <tr key={input.id} className="md:flex md:flex-col">
       <th className="h-full p-10px" style={row_style(deviceid)}>
-        <div className="flex flex-col items-center md:min-w-400px h-full">
-          <div className="flex-1 py-24px">{input.label}</div>
-          <button
-            className="align-end"
-            style={row_style(deviceid)}
-            onClick={() => this.props.setMonitor(input.port)}
-          >
-            Monitor
-          </button>
+        <div className="flex flex-row items-center md:min-w-400px h-full">
+          <div className="sidetag">{input.device_label}</div>
+          <div className="flex-1 py-24px">{input.port_label}</div>
+          <div className="flex flex-col">
+            {/* <button
+              className="align-end mb-20px"
+              style={row_style(deviceid)}
+              onClick={() => this.props.setMonitor(input.port)}
+            >
+              &#9881;
+            </button> */}
+
+            <button
+              className="align-end shadow"
+              style={row_style(deviceid)}
+              onClick={() => this.props.setMonitor(input.port)}
+            >
+              Monitor
+            </button>
+          </div>
         </div>
       </th>
       <td className="align-top">

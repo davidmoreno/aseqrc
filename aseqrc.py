@@ -162,7 +162,6 @@ class AlsaSequencerSh(AlsaSequencerBase):
             m = RE_CHILD.match(line)
             if m:
                 label = m.group(2).strip()
-                label = f"{parent_name} / {label}"
                 port_id = m.group(1)
                 port = f"{parent_id}:{port_id}"
 
@@ -171,9 +170,11 @@ class AlsaSequencerSh(AlsaSequencerBase):
                     "id": port,
                     "input": False,
                     "output": False,
+                    "label": f"{parent_name} / {label}",
+                    "port_label": label,
+                    "device_label": parent_name,
                 })
 
-                data["label"] = label
                 if type == PORT_INPUT:
                     data["input"] = True
                 if type == PORT_OUTPUT:
@@ -499,6 +500,8 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
                 "id": port,
                 "port": port,
                 "label": name,
+                "device_label": clientname,
+                "port_label": portinfo['name'],
                 "input": bool(input),
                 "output": bool(output),
                 "hidden": clientid == self.seq.client_id or clientid <= 2
