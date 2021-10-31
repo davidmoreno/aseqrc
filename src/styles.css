@@ -65,6 +65,14 @@ input:hover {
     height: 100%;
 }
 
+.min-h-full{
+    min-height: 100%;
+}
+
+.min-h-screen{
+    min-height: 100vh;
+}
+
 .mx-10px {
     margin-right: 10px;
     margin-left: 10px;
@@ -96,6 +104,10 @@ input:hover {
     margin: 10px;
 }
 
+.mr-20px {
+    margin-right: 20px;
+}
+
 .mt-20px {
     margin-top: 20px;
 }
@@ -116,6 +128,9 @@ input:hover {
     border-bottom: 1px solid #353b4c;
 }
 
+.p-3px{
+    padding: 3px;
+}
 
 .px-10px {
     padding-right: 10px;
@@ -194,6 +209,18 @@ input:hover {
 
 .text-center {
     text-align: center;
+}
+
+.text-white {
+    color: white;
+}
+
+.text-small {
+    font-size: 12px;
+}
+
+.text-normal {
+    font-size: 14px;
 }
 
 .align-top {

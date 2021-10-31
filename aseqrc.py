@@ -22,23 +22,15 @@ import sh
 import re
 import os
 import sys
-import hashlib
 import json
 import logging
 import threading
+from pyalsa import alsaseq
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)-8s:%(message)s',)
 logger = logging.getLogger("aseqrc")
 
 MAX_EVENTS = 100
-
-try:
-    from pyalsa import alsaseq
-    PYALSA = True
-except:
-    logger.warning(
-        "Using SH connector. It has less functionalities and is overall of less quality")
-    PYALSA = False
 
 # import alsaseq
 
@@ -106,156 +98,9 @@ class Config:
 config = Config(CONFIGFILE)
 
 
-class AlsaSequencerBase:
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.ports = {}
-        self.connections = {}  # id to id
-        self.events = []
-
-    def poll(self):
-        raise NotImplemented()
 
 
-class AlsaSequencerSh(AlsaSequencerBase):
-    """
-    Basic implementation that calls aconnect -l every time
-    it needs to know info about connections.
-
-    This is not very smart, as it is slow, and do not allow
-    connection tracking (ie. reconnect devices).
-
-    This code will disappear, but no python3-pyalsa in older ubuntu 18.04.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.update_all_ports()
-
-    def poll(self):
-        self.update_all_ports()
-
-    def update_all_ports(self):
-        self.ports = {}  # each port: {id, label, port, input, output}
-        self.update_ports(PORT_INPUT)
-        self.update_ports(PORT_OUTPUT)
-        self.update_connections()
-
-    def update_ports(self, type):
-        if type == PORT_INPUT:
-            flags = "-li"
-        elif type == PORT_OUTPUT:
-            flags = "-lo"
-        else:
-            flags = "-l"
-
-        parent_id = 0
-        parent_name = ""
-
-        lines = sh.aconnect(flags)
-
-        for line in lines:
-            m = RE_PARENT.match(line)
-            if m:
-                parent_id = m.group(1)
-                parent_name = m.group(2)
-            m = RE_CHILD.match(line)
-            if m:
-                label = m.group(2).strip()
-                port_id = m.group(1)
-                port = f"{parent_id}:{port_id}"
-
-                data = self.ports.get(port, {
-                    "port": port,
-                    "id": port,
-                    "input": False,
-                    "output": False,
-                    "label": f"{parent_name} / {label}",
-                    "port_label": label,
-                    "device_label": parent_name,
-                })
-
-                if type == PORT_INPUT:
-                    data["input"] = True
-                if type == PORT_OUTPUT:
-                    data["output"] = True
-
-                self.ports[port] = data
-
-    def update_connections(self):
-        ret = {}
-        frms = []
-        parent_id = 0
-        parent_name = ""
-        port_id = 0
-        cmdoutput = list(sh.aconnect("-l"))
-        for line in cmdoutput:
-            m = RE_PARENT.match(line)
-            if m:
-                parent_id = m.group(1)
-                parent_name = m.group(2)
-            m = RE_CHILD.match(line)
-            if m:
-                port_id = m.group(1)
-                label = m.group(2).strip()
-                frms = []
-                name = f"{parent_name} / {label}"
-                port = f"{parent_id}:{port_id}"
-                ret[port] = frms
-            m = RE_CONNECT_TO.match(line)
-            if m:
-                for port in line[16:].split(', '):
-                    # print(line, m.groups())
-                    frms.append(port.strip())
-
-        self.connections = ret
-        config["connections"] = ret
-
-        return ret
-
-    def connect(self, from_, to_):
-        errors = None
-        logger.info("Connect <%s> to <%s>", from_, to_)
-        if from_ not in self.ports:
-            logger.debug("Unknown port name: %s", from_)
-            errors = ["Unknown port name", str(from_)]
-        if to_ not in self.ports:
-            logger.debug("Unknown port name: %s", to_)
-            errors = ["Unknown port name", str(to_)]
-
-        if errors:
-            return errors
-
-        try:
-            sh.aconnect(self.ports[from_]["port"], self.ports[to_]["port"])
-        except sh.ErrorReturnCode as e:
-            errors = ["Could not connect", str(e)]
-
-        return errors
-
-    def disconnect(self, from_, to_):
-        logger.info("Disconnect <%s> to <%s>", from_, to_)
-        errors = None
-        if from_ not in self.ports:
-            logger.debug("Unknown port name: %s", from_)
-            errors = ["Unknown port name", str(from_)]
-        if to_ not in self.ports:
-            logger.debug("Unknown port name: %s", to_)
-            errors = ["Unknown port name", str(to_)]
-
-        if errors:
-            return errors
-
-        try:
-            sh.aconnect("-d", self.ports[from_]
-                        ["port"], self.ports[to_]["port"])
-        except sh.ErrorReturnCode as e:
-            errors = ["Could not disconnect", str(e)]
-
-        return errors
-
-
-class AlsaSequencerPyAlsa(AlsaSequencerBase):
+class AlsaSequencer:
     """
     Smarter connector, uses ALSA API.
 
@@ -299,7 +144,11 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
     }
 
     def __init__(self):
-        super().__init__()
+        self.lock = threading.Lock()
+        self.ports = {}
+        self.connections = {}  # id to id
+        self.events = []
+
         self.seq = alsaseq.Sequencer(
             name="default",
             clientname="aseqrc",
@@ -468,10 +317,10 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
                         to_clientid=data['connect.dest.client'],
                         to_portid=data['connect.dest.port'],
                     )
-                elif type in AlsaSequencerPyAlsa.MONITOR_EVENTS:
+                elif type in AlsaSequencer.MONITOR_EVENTS:
                     jevent = {
                         "id": self.event_count,
-                        "type": AlsaSequencerPyAlsa.MONITOR_EVENTS[type],
+                        "type": AlsaSequencer.MONITOR_EVENTS[type],
                         "data": data,
                     }
                     self.event_count += 1
@@ -570,10 +419,7 @@ class AlsaSequencerPyAlsa(AlsaSequencerBase):
             config.save()
 
 
-if PYALSA:
-    aseq = AlsaSequencerPyAlsa()
-else:
-    aseq = AlsaSequencerSh()
+aseq = AlsaSequencer()
 
 @app.after_request
 def set_access_control(response):
@@ -664,6 +510,11 @@ def monitor():
         })
 
     return resp
+
+@app.route("/reset", methods=["POST"])
+def reset():
+    aseq.update_all_ports()
+    return {"details": "reset"}
 
 
 def test():
