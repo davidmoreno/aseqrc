@@ -1,3 +1,10 @@
+aseqrc (21.11) unstable; urgency=medium
+
+  * Reset
+  * UI tweaks
+
+ -- David Moreno <dmoreno@coralbits.com>  Sun, 31 Oct 2021 17:20:30 +0100
+
 aseqrc (20.06) unstable; urgency=medium
 
   * Monitoring
