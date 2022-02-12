@@ -39,7 +39,7 @@ function getKeyStyle(
   if (!pressed[key]) {
     return default_
   }
-  return {...PRESSED_KEY, fill: `rgb(${pressed[key]*2}, 35, 200)`}
+  return { ...PRESSED_KEY, fill: `rgb(${pressed[key] * 2}, 35, 200)` }
 }
 
 export const Keyboard = (props: KeyboardProps) => {
