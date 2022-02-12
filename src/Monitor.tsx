@@ -19,7 +19,7 @@ interface MonitorState {
   timer: number
   last: number
   prevlast: number
-  pressed: number[]
+  pressed: Record<number, number>
 }
 
 const CC_NAMES = {
@@ -135,7 +135,7 @@ class Monitor extends React.Component<MonitorProps> {
       this.setState({ prevlast, last })
     }
 
-    let pressed = [...this.state.pressed]
+    let pressed = this.state.pressed
     for(const event of events.events){
     if (event.id > prevlast){
         pressed = this.updatePressState(event, pressed)
@@ -144,12 +144,9 @@ class Monitor extends React.Component<MonitorProps> {
     this.setState({pressed})
   }
 
-  updatePressState(event: EventI, pressed: number[]) : number[]{
-    if (event.type==="noteon" && event.data["note.velocity"] !== 0){
-      pressed = [...pressed, event.data["note.note"]]
-    }
-    if (event.type==="noteoff" || event.type==="noteon" && event.data["note.velocity"] === 0){
-      pressed = pressed.filter(x => x!==event.data["note.note"])
+  updatePressState(event: EventI, pressed: Record<number, number>) : Record<number, number>{
+    if (event.type==="noteon" || event.type==="noteoff" || event.type === "keypress" && event.data["note.velocity"] !== 0){
+      pressed = {...pressed, [event.data["note.note"]]: event.data["note.velocity"]}
     }
     return pressed
   }

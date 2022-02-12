@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { CSSProperties } from 'react'
 
 export interface KeyboardProps {
-  pressed: number[]
+  pressed: Record<number, number> // stores velocity, for example 0, off
   noctaves: number
 }
 
@@ -31,6 +31,17 @@ const PRESSED_KEY = {
   strokeWidth: 1,
 }
 
+function getKeyStyle(
+  pressed: Record<number, number>,
+  key: number,
+  default_: CSSProperties,
+) {
+  if (!pressed[key]) {
+    return default_
+  }
+  return {...PRESSED_KEY, fill: `rgb(${pressed[key]*2}, 35, 200)`}
+}
+
 export const Keyboard = (props: KeyboardProps) => {
   const basekey = 36
   const { pressed, noctaves } = props
@@ -43,132 +54,84 @@ export const Keyboard = (props: KeyboardProps) => {
       {range(noctaves).map((octave) => (
         <g id="layer1" transform={`translate(${140 * octave}, 0)`} key={octave}>
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 0)
-                ? PRESSED_KEY
-                : WHITE_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 0, WHITE_KEY)}
             width="20"
             height="50"
             x="0"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 2)
-                ? PRESSED_KEY
-                : WHITE_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 2, WHITE_KEY)}
             width="20"
             height="50"
             x="20"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 4)
-                ? PRESSED_KEY
-                : WHITE_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 4, WHITE_KEY)}
             width="20"
             height="50"
             x="40"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 5)
-                ? PRESSED_KEY
-                : WHITE_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 5, WHITE_KEY)}
             width="20"
             height="50"
             x="60"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 7)
-                ? PRESSED_KEY
-                : WHITE_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 7, WHITE_KEY)}
             width="20"
             height="50"
             x="80"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 9)
-                ? PRESSED_KEY
-                : WHITE_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 9, WHITE_KEY)}
             width="20"
             height="50"
             x="100"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 11)
-                ? PRESSED_KEY
-                : WHITE_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 11, WHITE_KEY)}
             width="20"
             height="50"
             x="120"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 1)
-                ? PRESSED_KEY
-                : BLACK_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 1, BLACK_KEY)}
             width="10"
             height="35"
             x="15"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 3)
-                ? PRESSED_KEY
-                : BLACK_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 3, BLACK_KEY)}
             width="10"
             height="35"
             x="35"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 6)
-                ? PRESSED_KEY
-                : BLACK_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 6, BLACK_KEY)}
             width="10"
             height="35"
             x="75"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 8)
-                ? PRESSED_KEY
-                : BLACK_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 8, BLACK_KEY)}
             width="10"
             height="35"
             x="95"
             y="0"
           />
           <rect
-            style={
-              pressed.includes(basekey + octave * 12 + 10)
-                ? PRESSED_KEY
-                : BLACK_KEY
-            }
+            style={getKeyStyle(pressed, basekey + octave * 12 + 10, BLACK_KEY)}
             width="10"
             height="35"
             x="115"
