@@ -2,6 +2,7 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "jsx": "react",
-    "noEmitOnError": true
+    "noEmitOnError": true,
+    "lib": ["ES2020"]
   }
 }

@@ -44,6 +44,9 @@ else:
 
 DEBUG = bool(os.environ.get("DEBUG"))
 
+with open("/etc/hostname", "rt") as fd:
+    hostname = fd.read().strip()
+
 
 def to_bool(x):
     return x in [True, "true", "yes", 1, "1", "on"]
@@ -98,8 +101,6 @@ class Config:
 config = Config(CONFIGFILE)
 
 
-
-
 class AlsaSequencer:
     """
     Smarter connector, uses ALSA API.
@@ -136,6 +137,7 @@ class AlsaSequencer:
 
     MONITOR_EVENTS = {
         alsaseq.SEQ_EVENT_NOTEON: "noteon",
+        alsaseq.SEQ_EVENT_KEYPRESS: "keypress",
         alsaseq.SEQ_EVENT_NOTEOFF: "noteoff",
         alsaseq.SEQ_EVENT_NOTE: "note",
         alsaseq.SEQ_EVENT_CONTROLLER: "cc",
@@ -421,12 +423,14 @@ class AlsaSequencer:
 
 aseq = AlsaSequencer()
 
+
 @app.after_request
 def set_access_control(response):
     response.headers["Access-Control-Allow-Headers"] = 'Content-Type'
     response.headers["Access-Control-Allow-Origin"] = HOSTNAME
 
     return response
+
 
 @app.route("/connect", methods=["POST", "OPTIONS"])
 def connect_api():
@@ -491,6 +495,9 @@ def status():
         resp = flask.jsonify({
             "ports": aseq.ports,
             "connections": aseq.connections,
+            "config": {
+                "hostname": hostname,
+            }
         })
     return resp
 
@@ -510,6 +517,7 @@ def monitor():
         })
 
     return resp
+
 
 @app.route("/reset", methods=["POST"])
 def reset():

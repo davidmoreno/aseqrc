@@ -3,6 +3,7 @@ import "./styles.css"
 import ConnectBoard from "./ConnectBoard"
 import Monitor from "./Monitor"
 import api from "./api"
+import { Keyboard } from "./Keyboard"
 
 interface AppState {
   screen: "connections" | "monitor"

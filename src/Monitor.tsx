@@ -1,6 +1,7 @@
 import React from "react"
 import { row_style } from "./utils"
 import api from "./api"
+import { Keyboard } from "./Keyboard"
 
 interface MonitorProps {
   onClose: () => any
@@ -18,6 +19,7 @@ interface MonitorState {
   timer: number
   last: number
   prevlast: number
+  pressed: number[]
 }
 
 const CC_NAMES = {
@@ -109,12 +111,13 @@ class Monitor extends React.Component<MonitorProps> {
     timer: 0,
     last: 0,
     prevlast: 0,
+    pressed: [],
   }
 
   async componentDidMount() {
     await api.post("monitor", { from: this.props.from })
     await this.reloadEvents()
-    const timer = setInterval(this.reloadEvents.bind(this), 1000)
+    const timer = setInterval(this.reloadEvents.bind(this), 100)
     this.setState({ timer })
   }
 
@@ -131,10 +134,28 @@ class Monitor extends React.Component<MonitorProps> {
     if (prevlast !== last) {
       this.setState({ prevlast, last })
     }
+
+    let pressed = [...this.state.pressed]
+    for(const event of events.events){
+    if (event.id > prevlast){
+        pressed = this.updatePressState(event, pressed)
+      }
+    }
+    this.setState({pressed})
+  }
+
+  updatePressState(event: EventI, pressed: number[]) : number[]{
+    if (event.type==="noteon" && event.data["note.velocity"] !== 0){
+      pressed = [...pressed, event.data["note.note"]]
+    }
+    if (event.type==="noteoff" || event.type==="noteon" && event.data["note.velocity"] === 0){
+      pressed = pressed.filter(x => x!==event.data["note.note"])
+    }
+    return pressed
   }
 
   render() {
-    const prevlast = this.state.prevlast
+    const {prevlast, pressed} = this.state
 
     return (
       <>
@@ -143,6 +164,7 @@ class Monitor extends React.Component<MonitorProps> {
             &lt; Back
           </button>
         </div>
+        <Keyboard pressed={pressed} noctaves={4}/>
         <table className="w-full uppercase">
           <thead>
             <tr>
