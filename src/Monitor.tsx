@@ -148,14 +148,16 @@ class Monitor extends React.Component<MonitorProps> {
     event: EventI,
     pressed: Record<number, number>,
   ): Record<number, number> {
-    if (
-      event.type === 'noteon' ||
-      event.type === 'noteoff' ||
-      (event.type === 'keypress' && event.data['note.velocity'] !== 0)
-    ) {
+    if (event.type === 'noteon' || event.type === 'keypress') {
       pressed = {
         ...pressed,
         [event.data['note.note']]: event.data['note.velocity'],
+      }
+    }
+    if (event.type === 'noteoff') {
+      pressed = {
+        ...pressed,
+        [event.data['note.note']]: 0,
       }
     }
     return pressed
