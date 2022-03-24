@@ -1,8 +1,10 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -34,6 +36,9 @@ type Status struct {
 var status *Status
 var counter int
 var mutex = &sync.Mutex{}
+
+//go:embed static
+var staticFS embed.FS
 
 func echoString(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "hello")
@@ -76,8 +81,15 @@ func setup() {
 func main() {
 	setup()
 
-	http.Handle("/", http.FileServer(http.Dir("./static")))
+	{
+		staticFSstatic, err := fs.Sub(staticFS, "static")
+		panic_if(err)
 
+		http.Handle("/", http.FileServer(http.FS(staticFSstatic)))
+	}
+
+	http.Handle("/static/", http.FileServer(http.FS(staticFS)))
+	http.Handle("/devel/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/status", getStatus)
 
 	http.HandleFunc("/hi", func(w http.ResponseWriter, r *http.Request) {
