@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/davidmoreno/aseqrc/alsaseq"
 )
@@ -72,6 +73,25 @@ func setup() {
 	fmt.Printf("%v\n", topology)
 }
 
+// From https://drstearns.github.io/tutorials/gomiddleware/
+//Logger is a middleware handler that does request logging
+type Logger struct {
+	handler http.Handler
+}
+
+//ServeHTTP handles the request by passing it to the real
+//handler and logging the request details
+func (l *Logger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	l.handler.ServeHTTP(w, r)
+	log.Printf("%16v %-6s %s", time.Since(start), r.Method, r.URL.Path)
+}
+
+//NewLogger constructs a new Logger middleware handler
+func NewLogger(handlerToWrap http.Handler) *Logger {
+	return &Logger{handlerToWrap}
+}
+
 func main() {
 	setup()
 
@@ -81,15 +101,16 @@ func main() {
 
 		http.Handle("/", http.FileServer(http.FS(staticFSstatic)))
 	}
+	mux := http.NewServeMux()
 
-	http.Handle("/static/", http.FileServer(http.FS(staticFS)))
-	http.Handle("/devel/", http.FileServer(http.Dir("static")))
-	http.HandleFunc("/status", getStatus)
+	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))
+	mux.Handle("/devel/", http.FileServer(http.Dir("static")))
+	mux.HandleFunc("/status", getStatus)
 
-	http.HandleFunc("/hi", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/hi", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hi")
 	})
 
 	log.Println("Listening at http://localhost:8001")
-	log.Fatal(http.ListenAndServe(":8001", nil))
+	log.Fatal(http.ListenAndServe(":8001", NewLogger(mux)))
 }
