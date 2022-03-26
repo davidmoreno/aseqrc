@@ -75,6 +75,7 @@ const InputRow = (props: DeviceRowI) => {
                 props.connect(port, inputs[Number(ev.target.value)])
               }
               className="w-full"
+              value={-1}
             >
               <option>-- Select Input to Connect --</option>
               {inputs

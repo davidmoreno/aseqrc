@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/davidmoreno/aseqrc/alsaseq"
@@ -25,35 +24,17 @@ type Status struct {
 	Config        Config                             `json:"config"`
 }
 
-var mutex = &sync.Mutex{}
+type ResponseDetails struct {
+	Details string `json:"details"`
+}
+type ResponseError struct {
+	Details string `json:"details"`
+}
+
 var hostname string
 
 //go:embed static
 var staticFS embed.FS
-
-func echoString(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "hello")
-}
-
-func getStatus(w http.ResponseWriter, r *http.Request) {
-	mutex.Lock()
-
-	// We could cache and update as needed.. but it is just 2 times faster from 4500 req/sec to 7700/req sec.. so nope.
-	topology := alsaseq.GetTopology()
-	var status = Status{
-		Devices:       topology.Devices,
-		OutputToInput: topology.OutputToInput,
-		Config: Config{
-			Hostname: hostname,
-		},
-	}
-
-	data, err := json.Marshal(status)
-	panic_if(err)
-	fmt.Fprint(w, string(data))
-
-	mutex.Unlock()
-}
 
 func panic_if(e error) {
 	if e != nil {
@@ -67,7 +48,7 @@ func setup() {
 	panic_if(err)
 
 	alsaseq.Init("aseqrc GO")
-	alsaseq.CreatePort("test")
+	// alsaseq.CreatePort("test")
 
 	var topology = alsaseq.GetTopology()
 	fmt.Printf("%v\n", topology)
@@ -92,6 +73,90 @@ func NewLogger(handlerToWrap http.Handler) *Logger {
 	return &Logger{handlerToWrap}
 }
 
+func getStatus(w http.ResponseWriter, r *http.Request) {
+	// We could cache and update as needed.. but it is just 2 times faster from 4500 req/sec to 7700/req sec.. so nope.
+	topology := alsaseq.GetTopology()
+	var status = Status{
+		Devices:       topology.Devices,
+		OutputToInput: topology.OutputToInput,
+		Config: Config{
+			Hostname: hostname,
+		},
+	}
+
+	data, err := json.Marshal(status)
+	panic_if(err)
+	fmt.Fprint(w, string(data))
+}
+
+func connect(w http.ResponseWriter, r *http.Request) {
+	type DisconnectMessage struct {
+		From alsaseq.Port `json:"from"`
+		To   alsaseq.Port `json:"to"`
+	}
+	disconnect_message := DisconnectMessage{}
+
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&disconnect_message)
+	if err != nil {
+		data, err := json.Marshal(ResponseError{Details: "error parsing data"})
+		panic_if(err)
+		w.WriteHeader(500)
+		fmt.Fprint(w, string(data))
+		return
+	}
+
+	fmt.Printf("%v\n", r.Body)
+	fmt.Printf("%v\n", disconnect_message)
+	{
+		err := alsaseq.Connect(disconnect_message.From, disconnect_message.To)
+		if err != nil {
+			data, err := json.Marshal(ResponseError{Details: err.Error()})
+			panic_if(err)
+			w.WriteHeader(500)
+			fmt.Fprint(w, string(data))
+			return
+		}
+	}
+	data, err := json.Marshal(ResponseDetails{Details: "ok"})
+	panic_if(err)
+	fmt.Fprint(w, string(data))
+}
+
+func disconnect(w http.ResponseWriter, r *http.Request) {
+	type DisconnectMessage struct {
+		From alsaseq.Port `json:"from"`
+		To   alsaseq.Port `json:"to"`
+	}
+	disconnect_message := DisconnectMessage{}
+
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&disconnect_message)
+	if err != nil {
+		data, err := json.Marshal(ResponseError{Details: "error parsing data"})
+		panic_if(err)
+		w.WriteHeader(500)
+		fmt.Fprint(w, string(data))
+		return
+	}
+
+	fmt.Printf("%v\n", r.Body)
+	fmt.Printf("%v\n", disconnect_message)
+	{
+		err := alsaseq.Disconnect(disconnect_message.From, disconnect_message.To)
+		if err != nil {
+			data, err := json.Marshal(ResponseError{Details: err.Error()})
+			panic_if(err)
+			w.WriteHeader(500)
+			fmt.Fprint(w, string(data))
+			return
+		}
+	}
+	data, err := json.Marshal(ResponseDetails{Details: "ok"})
+	panic_if(err)
+	fmt.Fprint(w, string(data))
+}
+
 func main() {
 	setup()
 
@@ -106,10 +171,8 @@ func main() {
 	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))
 	mux.Handle("/devel/", http.FileServer(http.Dir("static")))
 	mux.HandleFunc("/status", getStatus)
-
-	mux.HandleFunc("/hi", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hi")
-	})
+	mux.HandleFunc("/connect", connect)
+	mux.HandleFunc("/disconnect", disconnect)
 
 	log.Println("Listening at http://localhost:8001")
 	log.Fatal(http.ListenAndServe(":8001", NewLogger(mux)))

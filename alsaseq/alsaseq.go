@@ -4,11 +4,14 @@ package alsaseq
 #cgo LDFLAGS: -lasound
 #include <alsa/asoundlib.h>
 #include <stdint.h>
+#include <errno.h>
 */
 import "C"
 import (
 	"errors"
+	"fmt"
 	"log"
+	"syscall"
 	"unsafe"
 )
 
@@ -44,8 +47,8 @@ func CreatePort(name string) int {
 }
 
 type Port struct {
-	Device uint8 `json:"device"`
-	Port   uint8 `json:"port"`
+	Device uint8 `json:"device_id"`
+	Port   uint8 `json:"port_id"`
 }
 
 type DevicePort struct {
@@ -139,4 +142,74 @@ func GetTopology() SequencerTopology {
 	}
 
 	return topology
+}
+
+func Disconnect(from Port, to Port) error {
+	var subs *C.snd_seq_port_subscribe_t
+	var sender C.snd_seq_addr_t
+	var dest C.snd_seq_addr_t
+
+	sender.client = C.uint8_t(from.Device)
+	sender.port = C.uint8_t(from.Port)
+	dest.client = C.uint8_t(to.Device)
+	dest.port = C.uint8_t(to.Port)
+
+	fmt.Printf("%+v %+v", from, to)
+	fmt.Printf("%+v %+v", sender, dest)
+
+	C.snd_seq_port_subscribe_malloc(&subs)
+	defer C.snd_seq_port_subscribe_free(subs)
+
+	C.snd_seq_port_subscribe_set_sender(subs, &sender)
+	C.snd_seq_port_subscribe_set_dest(subs, &dest)
+
+	if int(C.snd_seq_get_port_subscription(seq, subs)) < 0 {
+		log.Printf("Error getting subscription\n")
+		return errors.New("Disconnect failed")
+	}
+	if int(C.snd_seq_unsubscribe_port(seq, subs)) < 0 {
+		log.Printf("Disconnect failed\n")
+		//  fprintf(stderr, _("Disconnection failed (%s)\n"), snd_strerror(errno));
+		return errors.New("Disconnect failed")
+	}
+	log.Printf("Disconnected %+v -> %+v", from, to)
+	return nil
+}
+
+func Connect(from Port, to Port) error {
+	var subs *C.snd_seq_port_subscribe_t
+	var sender C.snd_seq_addr_t
+	var dest C.snd_seq_addr_t
+
+	sender.client = C.uint8_t(from.Device)
+	sender.port = C.uint8_t(from.Port)
+	dest.client = C.uint8_t(to.Device)
+	dest.port = C.uint8_t(to.Port)
+
+	fmt.Printf("%+v %+v", from, to)
+	fmt.Printf("%+v %+v", sender, dest)
+
+	C.snd_seq_port_subscribe_malloc(&subs)
+	defer C.snd_seq_port_subscribe_free(subs)
+
+	C.snd_seq_port_subscribe_set_sender(subs, &sender)
+	C.snd_seq_port_subscribe_set_dest(subs, &dest)
+
+	{
+		ret, err := C.snd_seq_get_port_subscription(seq, subs)
+		if int(ret) == 0 {
+			log.Printf("Aready subscribed: %s\n", C.GoString(C.snd_strerror(C.int(err.(syscall.Errno)))))
+			return errors.New("Already subscribed")
+		}
+	}
+	{
+		ret, err := C.snd_seq_subscribe_port(seq, subs)
+		if int(ret) < 0 {
+			log.Printf("Connect failed: %s\n", C.GoString(C.snd_strerror(C.int(err.(syscall.Errno)))))
+			//  fprintf(stderr, _("Disconnection failed (%s)\n"), snd_strerror(errno));
+			return errors.New("Connect failed")
+		}
+	}
+	log.Printf("Disconnected %+v -> %+v", from, to)
+	return nil
 }

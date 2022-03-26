@@ -1,24 +1,24 @@
-import React from "react";
-import "./styles.css";
-import ConnectBoard from "./ConnectBoard";
-import Monitor from "./Monitor";
-import api from "./api";
+import React from "react"
+import "./styles.css"
+import ConnectBoard from "./ConnectBoard"
+import Monitor from "./Monitor"
+import api from "./api"
 
 interface AppState {
-  screen: "connections" | "monitor";
-  gen: number;
-  from?: string;
+  screen: "connections" | "monitor"
+  gen: number
+  from?: string
 }
 
 class App extends React.Component<{}, AppState> {
   state: AppState = {
     screen: "connections",
     gen: 0,
-  };
+  }
 
   reset() {
-    api.post("reset", {});
-    this.setState({ gen: this.state.gen + 1 });
+    api.post("reset", {})
+    this.setState({ gen: this.state.gen + 1 })
   }
 
   render() {
@@ -26,7 +26,7 @@ class App extends React.Component<{}, AppState> {
       return (
         <div className="flex flex-col min-h-screen">
           <div className="flex mb-10px bg-orange text-small items-center">
-            <span className="mr-20px p-3px text-normal">AseqRC 2021.11</span>
+            <span className="mr-20px p-3px text-normal">AseqRC 2022.04</span>
             <span className="flex-1" />
             <button
               className="bg-orange text-white"
@@ -42,7 +42,7 @@ class App extends React.Component<{}, AppState> {
             }
           />
         </div>
-      );
+      )
     }
     if (this.state.screen === "monitor") {
       return (
@@ -50,9 +50,9 @@ class App extends React.Component<{}, AppState> {
           onClose={() => this.setState({ screen: "connections" })}
           from={this.state.from!}
         />
-      );
+      )
     }
   }
 }
 
-export default App;
+export default App
