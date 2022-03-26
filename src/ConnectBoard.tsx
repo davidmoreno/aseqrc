@@ -1,19 +1,30 @@
 import React from "react"
 import api from "./api"
-import { PortId, PortI } from "./connection"
+import {
+  DeviceTree,
+  ConnectionTree,
+  Port,
+  DevicePort,
+  Device,
+} from "./connection"
 import InputRow from "./InputRow"
 import { renamed_name } from "./utils"
 
-interface StatusI {
-  ports: PortI[]
-  connections: Record<PortId, PortId[]>
+export interface StatusI {
+  devices: DeviceTree
+  outputtoinput: ConnectionTree
+  config: {
+    hostname: string
+  }
 }
 
 interface ConnectBoardState {
-  ports: PortI[]
-  inputs: PortI[]
-  outputs: PortI[]
-  connections: Record<PortId, PortId[]>
+  devices: DeviceTree
+  outputtoinput: ConnectionTree
+  input_ports: DevicePort[]
+  config: {
+    hostname: string
+  }
   timer: number
 }
 
@@ -26,10 +37,12 @@ class ConnectBoard extends React.Component<
   ConnectBoardState
 > {
   state: ConnectBoardState = {
-    inputs: [],
-    outputs: [],
-    connections: {},
-    ports: [],
+    devices: {},
+    outputtoinput: {},
+    input_ports: [],
+    config: {
+      hostname: "??",
+    },
     timer: 0,
   }
 
@@ -47,52 +60,72 @@ class ConnectBoard extends React.Component<
 
   async reloadStatus() {
     const status = await api.get<StatusI>("status")
+
+    const input_ports: DevicePort[] = []
+    const devices: DeviceTree = {}
+    for (const [device_id_s, device] of Object.entries(status.devices)) {
+      const device_id = Number(device_id_s)
+      devices[device_id] = {
+        device_id,
+        ...device,
+      }
+      for (const [port_id_s, port] of Object.entries(device.ports)) {
+        const port_id = Number(port_id_s)
+        devices[device_id].ports[port_id] = {
+          ...port,
+          device_id,
+          port_id,
+        }
+        input_ports.push({
+          ...port,
+          device_id,
+          port_id,
+          name: `${device.name} / ${port.name}`,
+        })
+      }
+    }
+
     this.setState({
-      ports: status.ports,
-      inputs: Object.values(status.ports).filter(
-        (x: PortI) => !x.hidden && x.input
-      ),
-      outputs: Object.values(status.ports).filter(
-        (x: PortI) => !x.hidden && x.output
-      ),
-      connections: status.connections,
+      devices,
+      input_ports,
+      outputtoinput: status.outputtoinput,
     })
   }
 
-  async disconnect(f: PortId, t: PortId) {
+  async disconnect(f: Port, t: Port) {
     await api.post("disconnect", {
-      from: f,
-      to: t,
+      from: { device_id: f.device_id, port_id: f.port_id },
+      to: { device_id: t.device_id, port_id: t.port_id },
     })
     await this.reloadStatus()
   }
 
-  async connect(f: PortId, t: PortId) {
-    console.info("Connect %o -> %o", f, t)
+  async connect(f: Port, t: Port) {
     await api.post("connect", {
-      from: f,
-      to: t,
+      from: { device_id: f.device_id, port_id: f.port_id },
+      to: { device_id: t.device_id, port_id: t.port_id },
     })
     await this.reloadStatus()
   }
 
-  setup(port: PortI) {
-    let name = prompt(
-      `Setup name for port (${port.port_label})`,
-      renamed_name(port.label, port.port_label)
-    )
-    if (name === undefined) {
-      return
-    }
-    if (name === "") {
-      name = port.port_label
-    }
-    const renames = JSON.parse(localStorage.renames || "{}")
-    localStorage.renames = JSON.stringify({ ...renames, [port.label]: name })
+  setup(port: DevicePort) {
+    // let name = prompt(
+    //   `Setup name for port (${port.port_label})`,
+    //   renamed_name(port.label, port.port_label)
+    // )
+    // if (name === undefined) {
+    //   return
+    // }
+    // if (name === "") {
+    //   name = port.port_label
+    // }
+    // const renames = JSON.parse(localStorage.renames || "{}")
+    // localStorage.renames = JSON.stringify({ ...renames, [port.label]: name })
+    return
   }
 
   render() {
-    const { inputs, outputs, connections, ports } = this.state
+    const { devices, outputtoinput, input_ports } = this.state
 
     return (
       <div className="">
@@ -104,19 +137,23 @@ class ConnectBoard extends React.Component<
             </tr>
           </thead>
           <tbody>
-            {inputs.map((i, rown) => (
-              <InputRow
-                input={i}
-                key={rown}
-                connections={connections}
-                ports={ports}
-                outputs={outputs}
-                connect={this.connect.bind(this)}
-                disconnect={this.disconnect.bind(this)}
-                setMonitor={this.props.setMonitor}
-                setup={this.setup.bind(this)}
-              />
-            ))}
+            {Object.values(devices).map((device) =>
+              Object.values(device.ports).map((port) => (
+                <InputRow
+                  key={device.device_id * 1024 + port.port_id}
+                  device={device}
+                  port={port}
+                  connected_to={
+                    outputtoinput[port.device_id]?.[port.port_id] || []
+                  }
+                  inputs={input_ports}
+                  connect={this.connect.bind(this)}
+                  disconnect={this.disconnect.bind(this)}
+                  setMonitor={this.props.setMonitor}
+                  setup={this.setup.bind(this)}
+                />
+              ))
+            )}
           </tbody>
         </table>
       </div>

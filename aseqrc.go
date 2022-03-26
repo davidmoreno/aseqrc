@@ -14,28 +14,18 @@ import (
 	"github.com/davidmoreno/aseqrc/alsaseq"
 )
 
-type Port struct {
-	Id          string `json:"id"`
-	Label       string `json:"label"`
-	DeviceLabel string `json:"device_label"`
-	Hidden      bool   `json:"hidden"`
-	Input       bool   `json:"input"`
-	Output      bool   `json:"output"`
-	Port        string `json:"port"`
-	PortLabel   string `json:"port_label"`
+type Config struct {
+	Hostname string `json:"hostname"`
 }
 
 type Status struct {
-	Ports       map[string]Port     `json:"ports"`
-	Connections map[string][]string `json:"Connections"`
-	Config      struct {
-		Hostname string `json:"hostname"`
-	} `json:"config"`
+	Devices       map[uint8]alsaseq.Device           `json:"devices"`
+	OutputToInput map[uint8]map[uint8][]alsaseq.Port `json:"outputtoinput"`
+	Config        Config                             `json:"config"`
 }
 
-var status *Status
-var counter int
 var mutex = &sync.Mutex{}
+var hostname string
 
 //go:embed static
 var staticFS embed.FS
@@ -46,6 +36,16 @@ func echoString(w http.ResponseWriter, r *http.Request) {
 
 func getStatus(w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
+
+	// We could cache and update as needed.. but it is just 2 times faster from 4500 req/sec to 7700/req sec.. so nope.
+	topology := alsaseq.GetTopology()
+	var status = Status{
+		Devices:       topology.Devices,
+		OutputToInput: topology.OutputToInput,
+		Config: Config{
+			Hostname: hostname,
+		},
+	}
 
 	data, err := json.Marshal(status)
 	panic_if(err)
@@ -61,17 +61,11 @@ func panic_if(e error) {
 }
 
 func setup() {
-	status = new(Status)
-
-	status.Ports = make(map[string]Port)
-	status.Connections = make(map[string][]string)
-
-	hostname, err := os.ReadFile("/etc/hostname")
+	hostname_, err := os.ReadFile("/etc/hostname")
+	hostname = strings.TrimSpace(string(hostname_))
 	panic_if(err)
-	status.Config.Hostname = strings.TrimSpace(string(hostname))
 
 	alsaseq.Init("aseqrc GO")
-
 	alsaseq.CreatePort("test")
 
 	var topology = alsaseq.GetTopology()
@@ -89,7 +83,7 @@ func main() {
 	}
 
 	http.Handle("/static/", http.FileServer(http.FS(staticFS)))
-	http.Handle("/devel/", http.FileServer(http.Dir("./static")))
+	http.Handle("/devel/", http.FileServer(http.Dir("static")))
 	http.HandleFunc("/status", getStatus)
 
 	http.HandleFunc("/hi", func(w http.ResponseWriter, r *http.Request) {

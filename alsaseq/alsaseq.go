@@ -44,25 +44,31 @@ func CreatePort(name string) int {
 }
 
 type Port struct {
-	device uint8
-	port   uint8
+	Device uint8 `json:"device"`
+	Port   uint8 `json:"port"`
+}
+
+type DevicePort struct {
+	Name     string `json:"name"`
+	IsInput  bool   `json:"is_input"`
+	IsOutput bool   `json:"is_output"`
 }
 
 type Device struct {
-	Name string
-	Port map[int]string
+	Name  string               `json:"name"`
+	Ports map[uint8]DevicePort `json:"ports"`
 }
 
 type SequencerTopology struct {
-	Devices       map[int]Device
-	OutputToInput map[Port][]Port
+	Devices       map[uint8]Device           `json:"devices"`
+	OutputToInput map[uint8]map[uint8][]Port `json:"outputtoinput"`
 }
 
 func GetTopology() SequencerTopology {
 	var topology SequencerTopology
 
-	topology.Devices = make(map[int]Device)
-	topology.OutputToInput = make(map[Port][]Port)
+	topology.Devices = make(map[uint8]Device)
+	topology.OutputToInput = make(map[uint8]map[uint8][]Port)
 
 	var cinfo *C.snd_seq_client_info_t
 	var pinfo *C.snd_seq_port_info_t
@@ -76,29 +82,32 @@ func GetTopology() SequencerTopology {
 
 	for int(C.snd_seq_query_next_client(seq, cinfo)) >= 0 {
 		count = 0
-		var client int
+		var client uint8
 		C.snd_seq_port_info_set_client(pinfo, C.snd_seq_client_info_get_client(cinfo))
 		C.snd_seq_port_info_set_port(pinfo, -1)
 
 		var device = Device{
-			Name: "unknown",
-			Port: make(map[int]string),
+			Name:  "unknown",
+			Ports: make(map[uint8]DevicePort),
 		}
 
 		for int(C.snd_seq_query_next_port(seq, pinfo)) >= 0 {
 			// this is the device
 			if count == 0 {
-				client = int(C.snd_seq_client_info_get_client(cinfo))
+				client = uint8(C.snd_seq_client_info_get_client(cinfo))
 				var name = C.GoString(C.snd_seq_client_info_get_name(cinfo))
 				device.Name = string(name)
 				topology.Devices[client] = device
 
 			}
 
-			port := int(C.snd_seq_port_info_get_port(pinfo))
+			port := uint8(C.snd_seq_port_info_get_port(pinfo))
 			name := C.GoString(C.snd_seq_port_info_get_name(pinfo))
 
-			device.Port[port] = name
+			caps := C.snd_seq_port_info_get_capability(pinfo)
+			input := (caps & (C.SND_SEQ_PORT_CAP_READ | C.SND_SEQ_PORT_CAP_SUBS_READ)) == (C.SND_SEQ_PORT_CAP_READ | C.SND_SEQ_PORT_CAP_SUBS_READ)
+			output := (caps & (C.SND_SEQ_PORT_CAP_WRITE | C.SND_SEQ_PORT_CAP_SUBS_WRITE)) == (C.SND_SEQ_PORT_CAP_WRITE | C.SND_SEQ_PORT_CAP_SUBS_WRITE)
+			device.Ports[port] = DevicePort{Name: name, IsInput: input, IsOutput: output}
 			count += 1
 
 			// Get subs
@@ -114,9 +123,14 @@ func GetTopology() SequencerTopology {
 			for int(C.snd_seq_query_port_subscribers(seq, subs)) >= 0 {
 				addr2 := C.snd_seq_query_subscribe_get_addr(subs)
 
-				port_from := Port{device: uint8(addr.client), port: uint8(addr.port)}
-				port_to := Port{device: uint8(addr2.client), port: uint8(addr2.port)}
-				topology.OutputToInput[port_from] = append(topology.OutputToInput[port_from], port_to)
+				port_to := Port{Device: uint8(addr2.client), Port: uint8(addr2.port)}
+				if topology.OutputToInput[uint8(addr.client)] == nil {
+					topology.OutputToInput[uint8(addr.client)] = make(map[uint8][]Port)
+				}
+				topology.OutputToInput[uint8(addr.client)][uint8(addr.port)] = append(
+					topology.OutputToInput[uint8(addr.client)][uint8(addr.port)],
+					port_to,
+				)
 
 				C.snd_seq_query_subscribe_set_index(subs, C.int(int(C.snd_seq_query_subscribe_get_index(subs))+1))
 			}

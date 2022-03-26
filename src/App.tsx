@@ -1,25 +1,24 @@
-import React from "react"
-import "./styles.css"
-import ConnectBoard from "./ConnectBoard"
-import Monitor from "./Monitor"
-import api from "./api"
-import { Keyboard } from "./Keyboard"
+import React from "react";
+import "./styles.css";
+import ConnectBoard from "./ConnectBoard";
+import Monitor from "./Monitor";
+import api from "./api";
 
 interface AppState {
-  screen: "connections" | "monitor"
-  gen: number
-  from?: string
+  screen: "connections" | "monitor";
+  gen: number;
+  from?: string;
 }
 
 class App extends React.Component<{}, AppState> {
   state: AppState = {
     screen: "connections",
     gen: 0,
-  }
+  };
 
   reset() {
-    api.post("reset", {})
-    this.setState({ gen: this.state.gen + 1 })
+    api.post("reset", {});
+    this.setState({ gen: this.state.gen + 1 });
   }
 
   render() {
@@ -43,7 +42,7 @@ class App extends React.Component<{}, AppState> {
             }
           />
         </div>
-      )
+      );
     }
     if (this.state.screen === "monitor") {
       return (
@@ -51,9 +50,9 @@ class App extends React.Component<{}, AppState> {
           onClose={() => this.setState({ screen: "connections" })}
           from={this.state.from!}
         />
-      )
+      );
     }
   }
 }
 
-export default App
+export default App;
