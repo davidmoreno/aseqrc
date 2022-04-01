@@ -16,6 +16,7 @@ import (
 )
 
 var seq *C.snd_seq_t
+var port_chan_map map[uint8]chan []byte
 
 func Init(name string) (string, error) {
 	log.Println("Init ALSA")
@@ -29,9 +30,79 @@ func Init(name string) (string, error) {
 	var cname = C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 	C.snd_seq_set_client_name(seq, cname)
-	C.snd_seq_nonblock(seq, 1)
+	// C.snd_seq_nonblock(seq, 1)
+
+	port_chan_map = make(map[uint8]chan []byte)
+
+	go poll_seq()
 
 	return "ok", nil
+}
+
+func poll_seq() {
+	fmt.Printf("Start poller\n")
+
+	npfds := C.snd_seq_poll_descriptors_count(seq, C.short(10))
+	ptr := C.malloc(C.ulong(16 * 10)) // Aseume pointer is 16 bytes.. 64bit. Should be more than enough?
+	defer C.free(ptr)
+	var pfds *C.struct_pollfd = (*C.struct_pollfd)(ptr)
+
+	C.snd_seq_poll_descriptors(seq, pfds, C.uint(npfds), C.POLLIN)
+
+	pdfsa := (*[1 << 30]C.struct_pollfd)(unsafe.Pointer(pfds))
+
+	fmt.Printf("N fds %d\n", npfds)
+
+	for i := 0; i < int(npfds); i++ {
+		fmt.Printf("fd %d: %d", i, pdfsa[i])
+	}
+
+	var encoder *C.snd_midi_event_t
+	if C.snd_midi_event_new(1024, &encoder) < 0 {
+		fmt.Printf("Error creating encoder event")
+		return
+	}
+	defer C.snd_midi_event_free(encoder)
+	C.snd_midi_event_no_status(encoder, 1)
+
+	cevent_data := C.malloc(128)
+	defer C.free(cevent_data)
+
+	for {
+		var event *C.snd_seq_event_t
+		err := C.snd_seq_event_input(seq, &event)
+		if int(err) < 0 {
+			fmt.Printf("Error reading event")
+			continue
+		}
+		ch := port_chan_map[uint8(event.source.port)]
+		if ch == nil {
+			fmt.Printf("Nil port")
+			continue
+		}
+
+		count := C.snd_midi_event_decode(
+			encoder,
+			(*C.uchar)(cevent_data),
+			16,
+			event,
+		)
+		if count < 0 {
+			fmt.Printf("Error encode")
+			continue
+		}
+		event_data := (*[1 << 30]byte)(unsafe.Pointer(cevent_data))[:count]
+
+		// fmt.Printf("%d %v\n", count, event_data)
+
+		ch <- event_data
+	}
+	// fd := poll.FD{Sysfd: seq}
+
+	// fd.RawRead(func(uintptr) {
+
+	// })
+	fmt.Printf("End poller\n")
 }
 
 func CreatePort(name string) int {
@@ -199,7 +270,7 @@ func Connect(from Port, to Port) error {
 		ret, err := C.snd_seq_get_port_subscription(seq, subs)
 		if int(ret) == 0 {
 			log.Printf("Aready subscribed: %s\n", C.GoString(C.snd_strerror(C.int(err.(syscall.Errno)))))
-			return errors.New("Already subscribed")
+			return errors.New("already subscribed")
 		}
 	}
 	{
@@ -207,9 +278,63 @@ func Connect(from Port, to Port) error {
 		if int(ret) < 0 {
 			log.Printf("Connect failed: %s\n", C.GoString(C.snd_strerror(C.int(err.(syscall.Errno)))))
 			//  fprintf(stderr, _("Disconnection failed (%s)\n"), snd_strerror(errno));
-			return errors.New("Connect failed")
+			return errors.New("connect failed")
 		}
 	}
 	log.Printf("Disconnected %+v -> %+v", from, to)
 	return nil
+}
+
+func PortReader(port Port) (chan []byte, error) {
+	reader, reader_port, err := OpenReaderPort("monitor")
+	if err != nil {
+		return nil, err
+	}
+	ch := make(chan []byte)
+	go func() {
+		Connect(port, reader_port)
+		defer Disconnect(port, reader_port)
+
+		var data []byte
+		for {
+			data = <-reader
+			if data == nil {
+				return
+			}
+			ch <- data[:]
+		}
+	}()
+	return ch, nil
+}
+
+func OpenReaderPort(name string) (chan []byte, Port, error) {
+	var port_id int
+	{
+		var caps C.uint = C.SND_SEQ_PORT_CAP_WRITE | C.SND_SEQ_PORT_CAP_SUBS_WRITE |
+			C.SND_SEQ_PORT_CAP_READ | C.SND_SEQ_PORT_CAP_SUBS_READ
+		var _type C.uint = C.SND_SEQ_TYPE_INET
+
+		var cname = C.CString(name)
+		defer C.free(unsafe.Pointer(cname))
+		var port = C.snd_seq_create_simple_port(seq, cname, caps, _type)
+		port_id = int(port)
+
+		if port_id != 0 {
+			return nil, Port{}, errors.New("cant create port")
+		}
+	}
+
+	ch := make(chan []byte)
+
+	var cinfo *C.snd_seq_client_info_t
+	C.snd_seq_client_info_malloc(&cinfo)
+	defer C.snd_seq_client_info_free(cinfo)
+
+	C.snd_seq_get_client_info(seq, cinfo)
+
+	device_id := int(C.snd_seq_client_info_get_client(cinfo))
+	port := Port{Device: uint8(device_id), Port: uint8(port_id)}
+
+	port_chan_map[uint8(port_id)] = ch
+	return ch, port, nil
 }

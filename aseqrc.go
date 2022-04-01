@@ -8,8 +8,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/websocket"
 
 	"github.com/davidmoreno/aseqrc/alsaseq"
 )
@@ -48,10 +51,6 @@ func setup() {
 	panic_if(err)
 
 	alsaseq.Init("aseqrc GO")
-	// alsaseq.CreatePort("test")
-
-	var topology = alsaseq.GetTopology()
-	fmt.Printf("%v\n", topology)
 }
 
 // From https://drstearns.github.io/tutorials/gomiddleware/
@@ -157,6 +156,42 @@ func disconnect(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, string(data))
 }
 
+func MonitorWs(ws *websocket.Conn) {
+	monitor := ws.Request().URL.Query().Get("port")
+	monitors := strings.Split(monitor, ":")
+	var err error
+	var device_id int = 0
+	var port_id int = 0
+
+	device_id, err = strconv.Atoi(monitors[0])
+	if err != nil {
+		fmt.Println("Invalid port")
+		return
+	}
+	port_id, err = strconv.Atoi(monitors[1])
+	if err != nil {
+		fmt.Println("Invalid port")
+		return
+	}
+
+	reader, err := alsaseq.PortReader(alsaseq.Port{Device: uint8(device_id), Port: uint8(port_id)})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	var data []byte
+	for {
+		data = <-reader
+		err := websocket.Message.Send(ws, data)
+		if err != nil {
+			fmt.Println("Conn closed")
+			return
+		}
+
+	}
+}
+
 func main() {
 	setup()
 
@@ -172,6 +207,7 @@ func main() {
 	mux.Handle("/devel/", http.FileServer(http.Dir("static")))
 	mux.HandleFunc("/status", getStatus)
 	mux.HandleFunc("/connect", connect)
+	mux.Handle("/monitor", websocket.Handler(MonitorWs))
 	mux.HandleFunc("/disconnect", disconnect)
 
 	log.Println("Listening at http://localhost:8001")
