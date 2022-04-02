@@ -196,7 +196,9 @@ func MonitorWs(ws *websocket.Conn) {
 		return
 	}
 
-	reader, err := alsaseq.PortReader(alsaseq.Port{Device: uint8(device_id), Port: uint8(port_id)})
+	to := alsaseq.Port{Device: uint8(device_id), Port: uint8(port_id)}
+
+	reader, from, err := alsaseq.PortReader(to)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -209,6 +211,7 @@ func MonitorWs(ws *websocket.Conn) {
 			err := websocket.Message.Receive(ws, msg)
 			if err != nil {
 				log.Printf("Closed wschannel. %v\n", err)
+				alsaseq.CloseReader(from.Port)
 				return
 			}
 			wschan <- msg

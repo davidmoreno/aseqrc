@@ -115,7 +115,16 @@ func CreatePort(name string) int {
 	defer C.free(unsafe.Pointer(cname))
 	var port = C.snd_seq_create_simple_port(seq, cname, caps, _type)
 
+	log.Printf("Created port %d", port)
 	return int(port)
+}
+
+func DeletePort(port uint8) error {
+	if C.snd_seq_delete_simple_port(seq, C.int(port)) < 0 {
+		return errors.New("can not delete port")
+	}
+	log.Printf("Delete port %d", port)
+	return nil
 }
 
 type Port struct {
@@ -285,10 +294,10 @@ func Connect(from Port, to Port) error {
 	return nil
 }
 
-func PortReader(port Port) (chan []byte, error) {
+func PortReader(port Port) (chan []byte, Port, error) {
 	reader, reader_port, err := OpenReaderPort("monitor")
 	if err != nil {
-		return nil, err
+		return nil, reader_port, err
 	}
 	ch := make(chan []byte)
 	go func() {
@@ -304,10 +313,11 @@ func PortReader(port Port) (chan []byte, error) {
 			ch <- data[:]
 		}
 	}()
-	return ch, nil
+	return ch, reader_port, nil
 }
 
 func CloseReader(port_id uint8) error {
+	DeletePort(port_id)
 	port_chan_map[port_id] = nil
 	return nil
 }
