@@ -40,7 +40,7 @@ func Init(name string) (string, error) {
 }
 
 func poll_seq() {
-	fmt.Printf("Start poller\n")
+	log.Println("Start poller")
 
 	npfds := C.snd_seq_poll_descriptors_count(seq, C.short(10))
 	ptr := C.malloc(C.ulong(16 * 10)) // Aseume pointer is 16 bytes.. 64bit. Should be more than enough?
@@ -51,7 +51,7 @@ func poll_seq() {
 
 	pdfsa := (*[1 << 30]C.struct_pollfd)(unsafe.Pointer(pfds))
 
-	fmt.Printf("N fds %d\n", npfds)
+	// fmt.Printf("N fds %d\n", npfds)
 
 	for i := 0; i < int(npfds); i++ {
 		fmt.Printf("fd %d: %d", i, pdfsa[i])
@@ -72,12 +72,13 @@ func poll_seq() {
 		var event *C.snd_seq_event_t
 		err := C.snd_seq_event_input(seq, &event)
 		if int(err) < 0 {
-			fmt.Printf("Error reading event")
+			log.Println("Error reading event")
 			continue
 		}
-		ch := port_chan_map[uint8(event.source.port)]
+		// log.Printf("Got event: %v\n", event)
+		ch := port_chan_map[uint8(event.dest.port)]
 		if ch == nil {
-			fmt.Printf("Nil port")
+			log.Printf("Data received on invalid port %d\n", event.source.port)
 			continue
 		}
 
@@ -88,7 +89,7 @@ func poll_seq() {
 			event,
 		)
 		if count < 0 {
-			fmt.Printf("Error encode")
+			log.Println("Error encode")
 			continue
 		}
 		event_data := (*[1 << 30]byte)(unsafe.Pointer(cevent_data))[:count]
@@ -102,7 +103,7 @@ func poll_seq() {
 	// fd.RawRead(func(uintptr) {
 
 	// })
-	fmt.Printf("End poller\n")
+	log.Println("End poller")
 }
 
 func CreatePort(name string) int {
@@ -225,8 +226,8 @@ func Disconnect(from Port, to Port) error {
 	dest.client = C.uint8_t(to.Device)
 	dest.port = C.uint8_t(to.Port)
 
-	fmt.Printf("%+v %+v", from, to)
-	fmt.Printf("%+v %+v", sender, dest)
+	fmt.Printf("%+v %+v\n", from, to)
+	fmt.Printf("%+v %+v\n", sender, dest)
 
 	C.snd_seq_port_subscribe_malloc(&subs)
 	defer C.snd_seq_port_subscribe_free(subs)
@@ -257,8 +258,7 @@ func Connect(from Port, to Port) error {
 	dest.client = C.uint8_t(to.Device)
 	dest.port = C.uint8_t(to.Port)
 
-	fmt.Printf("%+v %+v", from, to)
-	fmt.Printf("%+v %+v", sender, dest)
+	// log.Printf("Connect %+v -> %+v\n", from, to)
 
 	C.snd_seq_port_subscribe_malloc(&subs)
 	defer C.snd_seq_port_subscribe_free(subs)
@@ -281,7 +281,7 @@ func Connect(from Port, to Port) error {
 			return errors.New("connect failed")
 		}
 	}
-	log.Printf("Disconnected %+v -> %+v", from, to)
+	log.Printf("Connected %+v -> %+v", from, to)
 	return nil
 }
 
@@ -307,6 +307,11 @@ func PortReader(port Port) (chan []byte, error) {
 	return ch, nil
 }
 
+func CloseReader(port_id uint8) error {
+	port_chan_map[port_id] = nil
+	return nil
+}
+
 func OpenReaderPort(name string) (chan []byte, Port, error) {
 	var port_id int
 	{
@@ -319,7 +324,7 @@ func OpenReaderPort(name string) (chan []byte, Port, error) {
 		var port = C.snd_seq_create_simple_port(seq, cname, caps, _type)
 		port_id = int(port)
 
-		if port_id != 0 {
+		if port_id < 0 {
 			return nil, Port{}, errors.New("cant create port")
 		}
 	}

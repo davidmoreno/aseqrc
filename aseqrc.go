@@ -59,12 +59,34 @@ type Logger struct {
 	handler http.Handler
 }
 
+type StatusRecorder struct {
+	http.ResponseWriter
+	Status int
+}
+
+func (r *StatusRecorder) WriteHeader(status int) {
+	r.Status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
 //ServeHTTP handles the request by passing it to the real
 //handler and logging the request details
 func (l *Logger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
-	l.handler.ServeHTTP(w, r)
-	log.Printf("%16v %-6s %s", time.Since(start), r.Method, r.URL.Path)
+	userecorder := false
+	if userecorder {
+		start := time.Now()
+		recorder := &StatusRecorder{
+			ResponseWriter: w,
+			Status:         200,
+		}
+		l.handler.ServeHTTP(recorder, r)
+		log.Printf("%16v %d %-6s %s", time.Since(start), recorder.Status, r.Method, r.URL.Path)
+
+	} else {
+		start := time.Now()
+		l.handler.ServeHTTP(w, r)
+		log.Printf("%16v %d %-6s %s", time.Since(start), -1, r.Method, r.URL.Path)
+	}
 }
 
 //NewLogger constructs a new Logger middleware handler
@@ -180,31 +202,54 @@ func MonitorWs(ws *websocket.Conn) {
 		return
 	}
 
-	var data []byte
+	wschan := make(chan string)
+	go func() {
+		var msg string
+		for {
+			err := websocket.Message.Receive(ws, msg)
+			if err != nil {
+				log.Printf("Closed wschannel. %v\n", err)
+				return
+			}
+			wschan <- msg
+		}
+	}()
+
 	for {
-		data = <-reader
-		err := websocket.Message.Send(ws, data)
-		if err != nil {
-			fmt.Println("Conn closed")
+		select {
+		case data := <-reader:
+			err := websocket.Message.Send(ws, data)
+			if err != nil {
+				fmt.Println("Conn closed")
+				return
+			}
+		case msg := <-wschan:
+			log.Printf("Got %v. Must close? Dont know how to close channel.\n", msg)
 			return
 		}
-
 	}
+
 }
 
 func main() {
 	setup()
 
-	{
+	var static http.FileSystem
+
+	// If used envvar DEVEL != "", then use static dir
+	if os.Getenv("DEVEL") != "" {
+		static = http.Dir("./static/")
+		log.Println("Development serving from ./static/")
+	} else {
 		staticFSstatic, err := fs.Sub(staticFS, "static")
 		panic_if(err)
-
-		http.Handle("/", http.FileServer(http.FS(staticFSstatic)))
+		static = http.FS(staticFSstatic)
 	}
-	mux := http.NewServeMux()
 
-	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))
-	mux.Handle("/devel/", http.FileServer(http.Dir("static")))
+	mux := http.NewServeMux()
+	mux.Handle("/", http.FileServer(static))
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(static)))
+
 	mux.HandleFunc("/status", getStatus)
 	mux.HandleFunc("/connect", connect)
 	mux.Handle("/monitor", websocket.Handler(MonitorWs))
