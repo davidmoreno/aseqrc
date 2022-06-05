@@ -51,6 +51,7 @@ func setup() {
 	panic_if(err)
 
 	alsaseq.Init("aseqrc GO")
+	alsaseq.Watch() // this is internal to alsaseq and keeps connections synchronized
 }
 
 // From https://drstearns.github.io/tutorials/gomiddleware/

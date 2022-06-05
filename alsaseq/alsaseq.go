@@ -15,8 +15,15 @@ import (
 	"unsafe"
 )
 
+type MidiEvent C.snd_seq_event_t
+
+type ChannelEventListener struct {
+	midi_chan  chan []byte
+	event_chan chan MidiEvent
+}
+
 var seq *C.snd_seq_t
-var port_chan_map map[uint8]chan []byte
+var port_chan_map map[uint8]*ChannelEventListener
 
 func Init(name string) (string, error) {
 	log.Println("Init ALSA")
@@ -32,7 +39,7 @@ func Init(name string) (string, error) {
 	C.snd_seq_set_client_name(seq, cname)
 	// C.snd_seq_nonblock(seq, 1)
 
-	port_chan_map = make(map[uint8]chan []byte)
+	port_chan_map = make(map[uint8]*ChannelEventListener)
 
 	go poll_seq()
 
@@ -75,7 +82,7 @@ func poll_seq() {
 			log.Println("Error reading event")
 			continue
 		}
-		// log.Printf("Got event: %v\n", event)
+		log.Printf("Got event: %v\n", event)
 		ch := port_chan_map[uint8(event.dest.port)]
 		if ch == nil {
 			log.Printf("Data received on invalid port %d\n", event.source.port)
@@ -88,15 +95,20 @@ func poll_seq() {
 			16,
 			event,
 		)
-		if count < 0 {
-			log.Println("Error encode")
-			continue
+
+		if ch.event_chan != nil {
+			ch.event_chan <- MidiEvent(*event)
 		}
-		event_data := (*[1 << 30]byte)(unsafe.Pointer(cevent_data))[:count]
 
-		// fmt.Printf("%d %v\n", count, event_data)
+		// Not all messages are translatable to MIDI
+		if count > 0 {
+			event_data := (*[1 << 30]byte)(unsafe.Pointer(cevent_data))[:count]
 
-		ch <- event_data
+			// fmt.Printf("%d %v\n", count, event_data)
+			if ch.midi_chan != nil {
+				ch.midi_chan <- event_data
+			}
+		}
 	}
 	// fd := poll.FD{Sysfd: seq}
 
@@ -295,7 +307,8 @@ func Connect(from Port, to Port) error {
 }
 
 func PortReader(port Port) (chan []byte, Port, error) {
-	reader, reader_port, err := OpenReaderPort("monitor")
+	reader := make(chan []byte)
+	reader_port, err := OpenReaderPort("monitor", reader, nil)
 	if err != nil {
 		return nil, reader_port, err
 	}
@@ -322,7 +335,7 @@ func CloseReader(port_id uint8) error {
 	return nil
 }
 
-func OpenReaderPort(name string) (chan []byte, Port, error) {
+func OpenReaderPort(name string, midi_chan chan []byte, event_chan chan MidiEvent) (Port, error) {
 	var port_id int
 	{
 		var caps C.uint = C.SND_SEQ_PORT_CAP_WRITE | C.SND_SEQ_PORT_CAP_SUBS_WRITE |
@@ -335,11 +348,9 @@ func OpenReaderPort(name string) (chan []byte, Port, error) {
 		port_id = int(port)
 
 		if port_id < 0 {
-			return nil, Port{}, errors.New("cant create port")
+			return Port{}, errors.New("cant create port")
 		}
 	}
-
-	ch := make(chan []byte)
 
 	var cinfo *C.snd_seq_client_info_t
 	C.snd_seq_client_info_malloc(&cinfo)
@@ -350,6 +361,6 @@ func OpenReaderPort(name string) (chan []byte, Port, error) {
 	device_id := int(C.snd_seq_client_info_get_client(cinfo))
 	port := Port{Device: uint8(device_id), Port: uint8(port_id)}
 
-	port_chan_map[uint8(port_id)] = ch
-	return ch, port, nil
+	port_chan_map[uint8(port_id)] = &ChannelEventListener{midi_chan, event_chan}
+	return port, nil
 }
