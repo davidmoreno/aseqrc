@@ -51,7 +51,14 @@ func setup() {
 	panic_if(err)
 
 	alsaseq.Init("aseqrc GO")
-	alsaseq.Watch() // this is internal to alsaseq and keeps connections synchronized
+	// Setup database and connection.
+	db, err := AseqRcDb()
+	if err != nil {
+		log.Println("Could not access to the connections database: %s", err)
+		panic("Aborting")
+	}
+	// this uses alsaseq to get informed of changes. hen relay them to the DB.
+	AnnounceReader(db)
 }
 
 // From https://drstearns.github.io/tutorials/gomiddleware/

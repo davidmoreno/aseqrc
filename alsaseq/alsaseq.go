@@ -15,11 +15,14 @@ import (
 	"unsafe"
 )
 
-type MidiEvent C.snd_seq_event_t
+type MidiEvent struct {
+	Type int
+	Data []byte
+}
 
 type ChannelEventListener struct {
-	midi_chan  chan []byte
-	event_chan chan MidiEvent
+	MidiChan  chan []byte
+	EventChan chan MidiEvent
 }
 
 var seq *C.snd_seq_t
@@ -96,8 +99,9 @@ func poll_seq() {
 			event,
 		)
 
-		if ch.event_chan != nil {
-			ch.event_chan <- MidiEvent(*event)
+		if ch.EventChan != nil {
+			data := []byte{event.data[0], event.data[1], event.data[2], event.data[3]}
+			ch.EventChan <- MidiEvent{Type: int(event._type), Data: data}
 		}
 
 		// Not all messages are translatable to MIDI
@@ -105,8 +109,8 @@ func poll_seq() {
 			event_data := (*[1 << 30]byte)(unsafe.Pointer(cevent_data))[:count]
 
 			// fmt.Printf("%d %v\n", count, event_data)
-			if ch.midi_chan != nil {
-				ch.midi_chan <- event_data
+			if ch.MidiChan != nil {
+				ch.MidiChan <- event_data
 			}
 		}
 	}
@@ -363,4 +367,30 @@ func OpenReaderPort(name string, midi_chan chan []byte, event_chan chan MidiEven
 
 	port_chan_map[uint8(port_id)] = &ChannelEventListener{midi_chan, event_chan}
 	return port, nil
+}
+
+func GetDevicePortName(port Port) (string, string) {
+	topology := GetTopology()
+	device, ok := topology.Devices[port.Device]
+	if !ok {
+		return "", ""
+	}
+	dport, ok := device.Ports[port.Port]
+	if !ok {
+		return "", ""
+	}
+
+	return device.Name, dport.Name
+}
+
+func FindPortByName(device_name string, port_name string) (Port, bool) {
+	topology := GetTopology()
+	for device_id, device := range topology.Devices {
+		for port_id, port := range device.Ports {
+			if device.Name == device_name && port.Name == port_name {
+				return Port{Device: device_id, Port: port_id}, true
+			}
+		}
+	}
+	return Port{Device: 255, Port: 255}, false
 }
