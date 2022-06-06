@@ -33,21 +33,19 @@ func Watch() {
 	go func() {
 		for {
 			select {
-			case port := <-announcements:
-				log.Println("Got announcement %o", port)
-				topology := GetTopology()
-				DoConnectionsToFrom(port, topology)
+			case annevent := <-announcements:
+				log.Println("Got announcement ", annevent)
+				// topology := GetTopology()
+				// DoConnectionsToFrom(port, topology)
 			}
 		}
 	}()
-	log.Println("Watching for announcements")
 }
 
 /// Connets to announcements, and transforms the announcement events to "checkout this port" events
 /// We check for three events: connect, disconnect, and new port.
-func AnnounceReader() (chan Port, error) {
-	log.Println("Reader waiting!")
-	announce_chan := make(chan Port, 10)
+func AnnounceReader() (chan AnnouncementEvent, error) {
+	announce_chan := make(chan AnnouncementEvent, 10)
 	reader := make(chan MidiEvent)
 	reader_port, err := OpenReaderPort("announcements", nil, reader)
 	if err != nil {
@@ -59,9 +57,7 @@ func AnnounceReader() (chan Port, error) {
 		Connect(port, reader_port)
 		defer Disconnect(port, reader_port)
 		for {
-			log.Println("Waiting for events at announcement channel %o", reader)
 			data := <-reader
-			log.Println("Received Announcement event %o", data)
 
 			log.Println("Type %o", data._type)
 			// log.Println("Tag %o", data.tag)
@@ -72,13 +68,18 @@ func AnnounceReader() (chan Port, error) {
 			// log.Println("Flags %o", data.flags)
 			// log.Println("Data 0 %o", data.data[0])
 
+			if data._type == 63 {
+				log.Println("New port ", data.data[0], data.data[1])
+				announce_chan <- AnnouncementEvent{NewPort, Port{data.data[0], data.data[1]}, Port{0, 0}}
+			}
 			if data._type == 66 {
-				log.Println("Connect ", data.data[0], data.data[1], "->", data.data[2], data.data[3])
+				log.Println("New connection ", data.data[0], data.data[1], "->", data.data[2], data.data[3])
+				announce_chan <- AnnouncementEvent{Connected, Port{data.data[0], data.data[1]}, Port{data.data[2], data.data[3]}}
 			}
-			if data._type == 64 {
-				log.Println("Disonnect ", data.data[0], data.data[1], "->", data.data[2], data.data[3])
+			if data._type == 67 {
+				log.Println("New disconnection ", data.data[0], data.data[1], "->", data.data[2], data.data[3])
+				announce_chan <- AnnouncementEvent{Disconnected, Port{data.data[0], data.data[1]}, Port{data.data[2], data.data[3]}}
 			}
-			announce_chan <- port
 
 		}
 	}()

@@ -82,7 +82,7 @@ func poll_seq() {
 			log.Println("Error reading event")
 			continue
 		}
-		log.Printf("Got event: %v\n", event)
+		// log.Printf("Got event: %v\n", event)
 		ch := port_chan_map[uint8(event.dest.port)]
 		if ch == nil {
 			log.Printf("Data received on invalid port %d\n", event.source.port)
