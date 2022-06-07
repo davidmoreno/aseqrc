@@ -292,9 +292,12 @@ func Connect(from Port, to Port) error {
 	C.snd_seq_port_subscribe_set_dest(subs, &dest)
 
 	{
-		ret, err := C.snd_seq_get_port_subscription(seq, subs)
+		ret, _ := C.snd_seq_get_port_subscription(seq, subs)
 		if int(ret) == 0 {
-			log.Printf("Aready subscribed: %s\n", C.GoString(C.snd_strerror(C.int(err.(syscall.Errno)))))
+			// can not make errno to work here.. so no good feedback.
+			// var errno syscall.Errno
+			// errno = err.(syscall.Errno)
+			log.Println("Aready subscribed?")
 			return errors.New("already subscribed")
 		}
 	}
