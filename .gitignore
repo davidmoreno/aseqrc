@@ -7,3 +7,4 @@ dist
 static
 env
 aseqrc
+connections.db
