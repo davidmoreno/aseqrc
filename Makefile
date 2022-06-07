@@ -10,18 +10,11 @@ DESTDIR:=/
 
 install: build
 	mkdir -p $(DESTDIR)/usr/bin/
-	mkdir -p $(DESTDIR)/usr/share/aseqrc/
-	cp -a aseqrc.py $(DESTDIR)/usr/share/aseqrc/
-	cp -a static $(DESTDIR)/usr/share/aseqrc/
+	cp -a aseqrc $(DESTDIR)/usr/bin/
 	mkdir -p $(DESTDIR)/etc/systemd/system/
 	cp aseqrc.service $(DESTDIR)/etc/systemd/system/
 	mkdir -p $(DESTDIR)/var/lib/aseqrc/
 
-setup:
-	yarn --ignore-engines
-
-node_modules: package.json
-	make setup
 
 PARCEL:=node_modules/.bin/parcel
 
@@ -29,30 +22,28 @@ build: build-frontend build-backend
 
 build-frontend: static/index.html
 
-static/index.html: node_modules src/*.tsx
-	${PARCEL} build src/index.html -d static --public-url /static/
-	cp -a icons static
-	cp src/manifest.json static/manifest.json
-	sed -i s/manifest\\.js/manifest.json/g static/index.html
+frontend/node_modules: setup
+	cd frontend && make setup
+
+static/index.html: frontend/node_modules frontend/src/*.tsx
+	cd frontend && make build
 
 build-backend: aseqrc 
 
-aseqrc: *.go alsaseq/*.go static/*
-	go build
+aseqrc: backend/*.go backend/alsaseq/*.go
+	cd backend && make build
+	cp backend/aseqrc .
 
 run: build
 	./aseqrc
 
 serve:
-	@echo
-	@echo 'Remember to run main program in another terminal, access at http://localhost:5000'
-	@echo
-	${PARCEL} serve src/index.html -d static --public-url /static/
+	cd frontend && make serve
 
 deb: clean
 	dpkg-buildpackage --no-sign -d
 
 clean:
-	rm node_modules -rf
-	rm static -rf
-	rm .cache -rf
+	cd backend && make clean
+	cd frontend && make clean
+	rm aseqrc -rf
