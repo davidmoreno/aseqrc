@@ -98,6 +98,14 @@ export function midi_to_event(buffer: Uint8Array) {
         value: buffer[2],
       }
       break
+    case 0xa0:
+      type = "aftertouch"
+      data = {
+        channel: buffer[0] & 0x0f,
+        note: buffer[1],
+        value: buffer[2],
+      }
+      break
     case 0xe0:
       type = "pitch"
       data = {

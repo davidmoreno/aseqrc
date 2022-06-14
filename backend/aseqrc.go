@@ -249,7 +249,7 @@ func main() {
 
 	// If used envvar DEVEL != "", then use static dir
 	if os.Getenv("DEVEL") != "" {
-		static = http.Dir("./static/")
+		static = http.Dir("frontend/static/")
 		log.Println("Development serving from ./static/")
 	} else {
 		staticFSstatic, err := fs.Sub(staticFS, "static")

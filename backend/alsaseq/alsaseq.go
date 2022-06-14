@@ -102,11 +102,15 @@ func poll_seq() {
 		if ch.EventChan != nil {
 			data := []byte{event.data[0], event.data[1], event.data[2], event.data[3]}
 			ch.EventChan <- MidiEvent{Type: int(event._type), Data: data}
+			//fmt.Printf("Msg send %o %p\n", data, data)
 		}
 
 		// Not all messages are translatable to MIDI
 		if count > 0 {
-			event_data := (*[1 << 30]byte)(unsafe.Pointer(cevent_data))[:count]
+			event_data := make([]byte, count)
+			ref := (*[1 << 30]byte)(unsafe.Pointer(cevent_data))[:count]
+			copy(event_data, ref)
+			//fmt.Printf("Msg send %o %p\n", event_data, event_data)
 
 			// fmt.Printf("%d %v\n", count, event_data)
 			if ch.MidiChan != nil {

@@ -17,6 +17,7 @@ interface MonitorState {
   prevlast: number
   pressed: Record<number, number>
   websocket?: WebSocket
+  gen: number
 }
 
 function evcolor(event: any) {
@@ -44,7 +45,9 @@ class Monitor extends React.Component<MonitorProps> {
     last: 0,
     prevlast: 0,
     pressed: [],
+    gen: 0,
   }
+  timeout: any = null
 
   async componentDidMount() {
     const from = this.props.from
@@ -58,7 +61,6 @@ class Monitor extends React.Component<MonitorProps> {
     websocket.addEventListener("close", () => console.log("close ws"))
     websocket.addEventListener("message", this.receivedMessage.bind(this))
     this.setState({ websocket })
-    console.log({ websocket })
   }
 
   async receivedMessage(wsdata: any) {
@@ -69,10 +71,16 @@ class Monitor extends React.Component<MonitorProps> {
     event.id = id
 
     const pressed = this.updatePressState(event, this.state.pressed)
-    this.setState({ pressed })
-
     const events = [event, ...this.state.events.slice(0, 100)]
-    this.setState({ events, maxid: id })
+
+    this.setState({ pressed, events, maxid: id })
+    if (!this.timeout) {
+      console.log("Set timeout")
+      this.timeout = setTimeout(() => {
+        this.setState({ gen: this.state.gen + 1 })
+        this.timeout = null
+      }, 50)
+    }
   }
 
   async componentWillUnmount() {
@@ -93,6 +101,14 @@ class Monitor extends React.Component<MonitorProps> {
         [event.data["note"]]: event.data["velocity"],
       }
     }
+    if (event.type === "aftertouch") {
+      if (pressed[event.data.note] > 0) {
+        pressed = {
+          ...pressed,
+          [event.data["note"]]: (event.data["value"] || 0) + 1,
+        }
+      }
+    }
     if (event.type === "noteoff") {
       pressed = {
         ...pressed,
@@ -100,6 +116,10 @@ class Monitor extends React.Component<MonitorProps> {
       }
     }
     return pressed
+  }
+
+  shouldComponentUpdate(nprops, nstate) {
+    return nstate.gen != this.state.gen
   }
 
   render() {
