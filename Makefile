@@ -30,7 +30,7 @@ static/index.html: frontend/node_modules frontend/src/*.tsx
 
 build-backend: aseqrc 
 
-aseqrc: backend/*.go backend/alsaseq/*.go
+aseqrc: static/index.html backend/*.go backend/alsaseq/*.go
 	cd backend && make build
 	cp backend/aseqrc .
 

@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 # See debhelper(7) (uncomment to enable)
 # output every command that modifies files on the build system.
-#export DH_VERBOSE = 1
+# export DH_VERBOSE = 1
 
 
 # see FEATURE AREAS in dpkg-buildflags(1)
@@ -25,3 +25,6 @@
 
 override_dh_builddeb:
 	dh_builddeb -- -Zgzip
+
+override_dh_auto_install:
+	make -j1 install DESTDIR=$(CURDIR)/debian/aseqrc AM_UPDATE_INFO_DIR=no
