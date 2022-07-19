@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log"
@@ -46,15 +47,18 @@ func panic_if(e error) {
 }
 
 func setup() {
+	databasePath := flag.String("db", "connections.db", "Where to store the current connections")
+	flag.Parse()
+
 	hostname_, err := os.ReadFile("/etc/hostname")
 	hostname = strings.TrimSpace(string(hostname_))
 	panic_if(err)
 
 	alsaseq.Init("aseqrc GO")
 	// Setup database and connection.
-	db, err := AseqRcDb()
+	db, err := AseqRcDb(*databasePath)
 	if err != nil {
-		log.Println("Could not access to the connections database: %s", err)
+		log.Printf("Could not access to the connections database: %s / %s\n", *databasePath, err)
 		panic("Aborting")
 	}
 	// this uses alsaseq to get informed of changes. hen relay them to the DB.

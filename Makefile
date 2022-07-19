@@ -10,9 +10,9 @@ DESTDIR:=/
 
 install: build
 	mkdir -p $(DESTDIR)/usr/bin/
-	cp -a aseqrc $(DESTDIR)/usr/bin/
+	cp -a backend/aseqrc $(DESTDIR)/usr/bin/
 	mkdir -p $(DESTDIR)/etc/systemd/system/
-	cp aseqrc.service $(DESTDIR)/etc/systemd/system/
+	cp etc/aseqrc.service $(DESTDIR)/etc/systemd/system/
 	mkdir -p $(DESTDIR)/var/lib/aseqrc/
 
 

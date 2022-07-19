@@ -24,8 +24,8 @@ case "$1" in
             --home /usr/lib/aseqrc/ --no-create-home \
             --gecos "aseqrc daemon" aseqrc
         addgroup --quiet aseqrc audio
-        mkdir -p /usr/lib/aseqrc/
-        chown aseqrc:audio /usr/lib/aseqrc/
+        mkdir -p /var/lib/aseqrc/
+        chown aseqrc:audio /var/lib/aseqrc/
 
         systemctl enable aseqrc || true
         systemctl restart aseqrc

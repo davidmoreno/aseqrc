@@ -21,8 +21,8 @@ const (
 	NewPort      = 3
 )
 
-func AseqRcDb() (*gorm.DB, error) {
-	db, err := gorm.Open(sqlite.Open("connections.db"), &gorm.Config{})
+func AseqRcDb(filename string) (*gorm.DB, error) {
+	db, err := gorm.Open(sqlite.Open(filename), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
