@@ -4,7 +4,7 @@ Description=ALSA sequencer Remote Control. Server at IP:8001
 [Service]
 User=aseqrc
 Group=audio
-ExecStart=/usr/bin/aseqrc -db /var/lib/aseqrc/connecitons.db
+ExecStart=/usr/bin/aseqrc -db /var/lib/aseqrc/connections.db
 WorkingDirectory=/var/lib/aseqrc/
 Restart=on-failure
 
