@@ -1,12 +1,13 @@
 [Unit]
-Description=ALSA sequencer Remote Control. Server at IP:8001
+Description=ALSA sequencer Remote Control. Server at IP:80
 
 [Service]
 User=aseqrc
 Group=audio
-ExecStart=/usr/bin/aseqrc -db /var/lib/aseqrc/connections.db
+ExecStart=/usr/bin/aseqrc -db /var/lib/aseqrc/connections.db -port 80
 WorkingDirectory=/var/lib/aseqrc/
 Restart=on-failure
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target

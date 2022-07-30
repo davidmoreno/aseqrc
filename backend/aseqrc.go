@@ -34,6 +34,10 @@ type ResponseError struct {
 	Details string `json:"details"`
 }
 
+type Settings struct {
+	Port string
+}
+
 var hostname string
 
 //go:embed static
@@ -45,8 +49,9 @@ func panic_if(e error) {
 	}
 }
 
-func setup() {
+func setup() Settings {
 	databasePath := flag.String("db", "connections.db", "Where to store the current connections")
+	port := flag.String("port", "8001", "Listen port")
 	flag.Parse()
 
 	hostname_, err := os.ReadFile("/etc/hostname")
@@ -62,6 +67,10 @@ func setup() {
 	}
 	// this uses alsaseq to get informed of changes. hen relay them to the DB.
 	AnnounceReader(db)
+
+	return Settings{
+		Port: *port,
+	}
 }
 
 // From https://drstearns.github.io/tutorials/gomiddleware/
@@ -253,7 +262,7 @@ func MonitorWs(ws *websocket.Conn) {
 }
 
 func main() {
-	setup()
+	settings := setup()
 
 	var static http.FileSystem
 
@@ -277,6 +286,6 @@ func main() {
 	mux.Handle("/monitor", websocket.Handler(MonitorWs))
 	mux.HandleFunc("/disconnect", disconnect)
 
-	log.Println("Listening at http://localhost:8001")
-	log.Fatal(http.ListenAndServe(":8001", NewLogger(mux)))
+	log.Println(fmt.Sprintf("Listening at http://localhost:%s", settings.Port))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", settings.Port), NewLogger(mux)))
 }
