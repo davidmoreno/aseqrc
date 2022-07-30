@@ -1,2 +1,3 @@
-aseqrc_22.07_all.deb unknown optional
+aseqrc-dbgsym_22.07_amd64.ddeb debug optional automatic=yes
 aseqrc_22.07_amd64.buildinfo unknown optional
+aseqrc_22.07_amd64.deb unknown optional

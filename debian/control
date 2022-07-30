@@ -9,7 +9,7 @@ Homepage: https://github.com/davidmoreno/aseqrc/
 #Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/aseqrc.git
 
 Package: aseqrc
-Architecture: all
+Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Control Aslas Sequencer conenection via web
  This allows a raspberry pi without monitor to change connections using your
