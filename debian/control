@@ -11,6 +11,6 @@ Homepage: https://github.com/davidmoreno/aseqrc/
 Package: aseqrc
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Control Aslas Sequencer conenection via web
+Description: Control ALSA Sequencer connections via web
  This allows a raspberry pi without monitor to change connections using your
  mobile.
