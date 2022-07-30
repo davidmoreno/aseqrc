@@ -35,7 +35,7 @@ class App extends React.Component<{}, AppState> {
     if (this.state.screen === "connections") {
       return (
         <div className="flex flex-col min-h-screen">
-          <div className={`flex ${row_style(-1)} text-small items-center`}>
+          <div className={`flex text-small items-center`}>
             <span className="p-24px text-huge">
               {this.state.config?.hostname}
             </span>
@@ -43,7 +43,7 @@ class App extends React.Component<{}, AppState> {
             <div className="p-10px flex flex-col items-end text-right">
               <span className="text-normal">AseqRC 2022.07</span>
               <button
-                className="bg-orange text-white mt-10px"
+                className="hover:bg-orange text-black mt-10px"
                 onClick={() => this.reset()}
               >
                 Reload &#128259;

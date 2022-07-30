@@ -26,20 +26,13 @@ table th {
 button,
 select,
 input {
-    background: #f5f5db;
     border: 0;
     padding: 5px;
     border-radius: 3px;
-    color: black;
     cursor: pointer;
     overflow-wrap: break-word;
 }
 
-button:hover,
-select:hover,
-input:hover {
-    background: rgba(255, 255, 255, 0.4) !important;
-}
 
 .w-30px {
     width: 30px;
@@ -259,6 +252,14 @@ input:hover {
 .bg-orange {
     background-color: #ffa431;
 }
+.hover\:bg-orange:hover, button.hover\:bg-orange:hover {
+    background-color: #ffa431;
+}
+
+.bg-grey {
+    background: #53545d;
+}
+
 
 .text-black {
     color: black;
