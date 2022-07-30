@@ -9,7 +9,8 @@ connections with my mobile.
 Very handily it is packaged as a PWA, so it can be installed as an app from
 the browser.
 
-After installation it is available at http://IP:5000 and can be installed as a PWA.
+After installation it is available at http://IP and can be installed as a PWA 
+(Google Chrome or Firefox, click add to home screen).
 
 <a href="https://raw.githubusercontent.com/davidmoreno/aseqrc/master/screenshot1.png">
   <img src="https://raw.githubusercontent.com/davidmoreno/aseqrc/master/screenshot1.png" width="256"/>
