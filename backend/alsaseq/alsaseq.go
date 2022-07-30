@@ -53,9 +53,10 @@ func poll_seq() {
 	log.Println("Start poller")
 
 	npfds := C.snd_seq_poll_descriptors_count(seq, C.short(10))
-	ptr := C.malloc(C.ulong(16 * 10)) // Aseume pointer is 16 bytes.. 64bit. Should be more than enough?
+	var pfds *C.struct_pollfd
+	ptr := C.malloc(C.ulong(unsafe.Sizeof(pfds) * 10)) // Aseume pointer is 16 bytes.. 64bit. Should be more than enough?
 	defer C.free(ptr)
-	var pfds *C.struct_pollfd = (*C.struct_pollfd)(ptr)
+	pfds = (*C.struct_pollfd)(ptr)
 
 	C.snd_seq_poll_descriptors(seq, pfds, C.uint(npfds), C.POLLIN)
 
