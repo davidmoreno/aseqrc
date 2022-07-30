@@ -3,17 +3,27 @@ import "./styles.css"
 import ConnectBoard from "./ConnectBoard"
 import Monitor from "./Monitor"
 import api from "./api"
+import { row_style } from "./utils"
+
+interface ConfigI {
+  hostname: string
+}
 
 interface AppState {
   screen: "connections" | "monitor"
   gen: number
   from?: string
+  config?: ConfigI
 }
 
 class App extends React.Component<{}, AppState> {
   state: AppState = {
     screen: "connections",
     gen: 0,
+  }
+  async componentDidMount() {
+    const config = await api.get<ConfigI>("config")
+    this.setState({ config: config })
   }
 
   reset() {
@@ -25,15 +35,20 @@ class App extends React.Component<{}, AppState> {
     if (this.state.screen === "connections") {
       return (
         <div className="flex flex-col min-h-screen">
-          <div className="flex mb-10px bg-orange text-small items-center">
-            <span className="mr-20px p-3px text-normal">AseqRC 2022.04</span>
+          <div className={`flex ${row_style(-1)} text-small items-center`}>
+            <span className="p-24px text-huge">
+              {this.state.config?.hostname}
+            </span>
             <span className="flex-1" />
-            <button
-              className="bg-orange text-white"
-              onClick={() => this.reset()}
-            >
-              Reload &#128259;
-            </button>
+            <div className="p-10px flex flex-col items-end text-right">
+              <span className="text-normal">AseqRC 2022.07</span>
+              <button
+                className="bg-orange text-white mt-10px"
+                onClick={() => this.reset()}
+              >
+                Reload &#128259;
+              </button>
+            </div>
           </div>
           <ConnectBoard
             key={this.state.gen}

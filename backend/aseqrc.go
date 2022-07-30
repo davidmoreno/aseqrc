@@ -25,7 +25,6 @@ type Config struct {
 type Status struct {
 	Devices       map[uint8]alsaseq.Device           `json:"devices"`
 	OutputToInput map[uint8]map[uint8][]alsaseq.Port `json:"outputtoinput"`
-	Config        Config                             `json:"config"`
 }
 
 type ResponseDetails struct {
@@ -112,12 +111,19 @@ func getStatus(w http.ResponseWriter, r *http.Request) {
 	var status = Status{
 		Devices:       topology.Devices,
 		OutputToInput: topology.OutputToInput,
-		Config: Config{
-			Hostname: hostname,
-		},
 	}
 
 	data, err := json.Marshal(status)
+	panic_if(err)
+	fmt.Fprint(w, string(data))
+}
+
+func getConfig(w http.ResponseWriter, r *http.Request) {
+	var config = Config{
+		Hostname: hostname,
+	}
+
+	data, err := json.Marshal(config)
 	panic_if(err)
 	fmt.Fprint(w, string(data))
 }
@@ -265,6 +271,7 @@ func main() {
 	mux.Handle("/", http.FileServer(static))
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(static)))
 
+	mux.HandleFunc("/config", getConfig)
 	mux.HandleFunc("/status", getStatus)
 	mux.HandleFunc("/connect", connect)
 	mux.Handle("/monitor", websocket.Handler(MonitorWs))

@@ -1,14 +1,7 @@
 import React from "react"
 import api from "./api"
-import {
-  DeviceTree,
-  ConnectionTree,
-  Port,
-  DevicePort,
-  Device,
-} from "./connection"
+import { DeviceTree, ConnectionTree, Port, DevicePort } from "./connection"
 import InputRow from "./InputRow"
-import { renamed_name } from "./utils"
 
 export interface StatusI {
   devices: DeviceTree

@@ -108,6 +108,10 @@ input:hover {
     margin-right: 20px;
 }
 
+.mt-10px {
+    margin-top: 10px;
+}
+
 .mt-20px {
     margin-top: 20px;
 }
@@ -167,6 +171,7 @@ input:hover {
     padding-top: 20px;
 }
 
+
 .pb-20px {
     padding-bottom: 20px;
 }
@@ -207,6 +212,10 @@ input:hover {
     align-items: center;
 }
 
+.items-end {
+    align-items: end;
+}
+
 .text-center {
     text-align: center;
 }
@@ -221,6 +230,18 @@ input:hover {
 
 .text-normal {
     font-size: 14px;
+}
+
+.text-big {
+    font-size: 18px;
+}
+
+.text-huge {
+    font-size: 24px;
+}
+
+.text-right{
+    text-align: right;
 }
 
 .align-top {
