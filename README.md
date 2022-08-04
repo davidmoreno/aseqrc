@@ -1,6 +1,6 @@
 # Alsa Sequencer Remote Control
 
-Creates an http server that aallows to easily control alsa sequencer
+Creates an http server that allows to easily control alsa sequencer
 connections.
 
 I use it to connect all my MIDI gear to a Raspberry Pi, and control the
