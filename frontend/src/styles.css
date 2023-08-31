@@ -282,7 +282,7 @@ input {
 }
 
 .with-sidetag {
-    margin-left: 40px;
+    margin-left: 80px;
     border-left: 2px solid black;
     position: relative;
 }
@@ -293,7 +293,7 @@ input {
     transform: rotate(-90deg);
     padding-top: 10px;
     font-size: 0.8em;
-    left: -50px;
+    left: -85px;
     text-align: center;
     overflow: hidden;
     word-wrap: break-word;
