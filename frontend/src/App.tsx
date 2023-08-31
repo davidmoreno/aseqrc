@@ -41,7 +41,7 @@ class App extends React.Component<{}, AppState> {
             </span>
             <span className="flex-1" />
             <div className="p-10px flex flex-col items-end text-right">
-              <span className="text-normal">AseqRC 2022.07</span>
+              <span className="text-normal">AseqRC 2023.09</span>
               <button
                 className="hover:bg-orange text-black mt-10px"
                 onClick={() => this.reset()}
