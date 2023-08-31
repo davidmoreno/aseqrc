@@ -49,6 +49,12 @@ input {
 .min-w-400px {
     min-width: 400px;
 }
+.min-w-500px{
+    min-width: 500px;
+}
+.max-w-500px{
+    max-width: 500px;
+}
 
 .w-full {
     width: 100%;
@@ -328,6 +334,13 @@ input {
     .md\:max-w-100vw {
         max-width: 100vw;
     }
+}
+
+.img-midi{
+    width: 64px;
+    height: 64px;
+    object-fit: fill;
+    margin-left: 12px;
 }
 
 @media screen and (min-device-width: 1001px) {

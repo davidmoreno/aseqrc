@@ -4,6 +4,7 @@ import { renamed_name, row_style } from "./utils"
 import Connection from "./Connection"
 import { ConnectionTree, Device, DevicePort, Port } from "./connection"
 import { isJSDocProtectedTag } from "typescript"
+import { get_image } from "./image"
 
 interface DeviceRowI {
   device: Device
@@ -32,9 +33,18 @@ const InputRow = (props: DeviceRowI) => {
   const deviceid = device.device_id
   return (
     <tr key={deviceid} className="md:flex md:flex-col">
-      <th className="h-full p-10px" style={row_style(deviceid)}>
+      <th
+        className="h-full p-10px min-w-500px max-w-500px"
+        style={row_style(deviceid)}
+      >
         <div className="flex flex-row items-center md:min-w-400px h-full with-sidetag">
           <div className="sidetag">{device.name}</div>
+          <div>
+            <img
+              className="img-midi"
+              src={get_image(device.name, port.name)}
+            ></img>
+          </div>
           <div className="flex-1 py-24px">{port.name}</div>
           <div className="flex flex-col">
             {
@@ -71,9 +81,16 @@ const InputRow = (props: DeviceRowI) => {
           ))}
           <div className="p-24px lg:min-w-400px br-1px">
             <select
-              onChange={(ev) =>
-                props.connect(port, inputs[Number(ev.target.value)])
-              }
+              onChange={(ev) => {
+                const [device_id, port_id] = ev.target.value
+                  .split(":")
+                  .map((x: string) => Number(x))
+                const input = inputs.find(
+                  (x) => x.device_id == device_id && x.port_id == port_id
+                )
+                if (!input) return
+                props.connect(port, input)
+              }}
               className="w-full"
               value={-1}
             >
@@ -81,7 +98,10 @@ const InputRow = (props: DeviceRowI) => {
               {inputs
                 .filter((x) => x.is_input)
                 .map((input, idx) => (
-                  <option value={idx} key={idx}>
+                  <option
+                    value={`${input.device_id}:${input.port_id}`}
+                    key={idx}
+                  >
                     {input.name}
                   </option>
                 ))}

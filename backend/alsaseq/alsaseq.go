@@ -210,8 +210,8 @@ func GetTopology() SequencerTopology {
 			name := C.GoString(C.snd_seq_port_info_get_name(pinfo))
 
 			caps := C.snd_seq_port_info_get_capability(pinfo)
-			input := (caps & (C.SND_SEQ_PORT_CAP_READ | C.SND_SEQ_PORT_CAP_SUBS_READ)) == (C.SND_SEQ_PORT_CAP_READ | C.SND_SEQ_PORT_CAP_SUBS_READ)
-			output := (caps & (C.SND_SEQ_PORT_CAP_WRITE | C.SND_SEQ_PORT_CAP_SUBS_WRITE)) == (C.SND_SEQ_PORT_CAP_WRITE | C.SND_SEQ_PORT_CAP_SUBS_WRITE)
+			output := (caps & (C.SND_SEQ_PORT_CAP_READ | C.SND_SEQ_PORT_CAP_SUBS_READ)) == (C.SND_SEQ_PORT_CAP_READ | C.SND_SEQ_PORT_CAP_SUBS_READ)
+			input := (caps & (C.SND_SEQ_PORT_CAP_WRITE | C.SND_SEQ_PORT_CAP_SUBS_WRITE)) == (C.SND_SEQ_PORT_CAP_WRITE | C.SND_SEQ_PORT_CAP_SUBS_WRITE)
 			device.Ports[port] = DevicePort{Name: name, IsInput: input, IsOutput: output}
 			count += 1
 
