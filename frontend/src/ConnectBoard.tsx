@@ -131,21 +131,23 @@ class ConnectBoard extends React.Component<
           </thead>
           <tbody>
             {Object.values(devices).map((device) =>
-              Object.values(device.ports).map((port) => (
-                <InputRow
-                  key={device.device_id * 1024 + port.port_id}
-                  device={device}
-                  port={port}
-                  connected_to={
-                    outputtoinput[port.device_id]?.[port.port_id] || []
-                  }
-                  inputs={input_ports}
-                  connect={this.connect.bind(this)}
-                  disconnect={this.disconnect.bind(this)}
-                  setMonitor={this.props.setMonitor}
-                  setup={this.setup.bind(this)}
-                />
-              ))
+              Object.values(device.ports)
+                .filter((port) => port.is_output)
+                .map((port) => (
+                  <InputRow
+                    key={device.device_id * 1024 + port.port_id}
+                    device={device}
+                    port={port}
+                    connected_to={
+                      outputtoinput[port.device_id]?.[port.port_id] || []
+                    }
+                    inputs={input_ports}
+                    connect={this.connect.bind(this)}
+                    disconnect={this.disconnect.bind(this)}
+                    setMonitor={this.props.setMonitor}
+                    setup={this.setup.bind(this)}
+                  />
+                ))
             )}
           </tbody>
         </table>

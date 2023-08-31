@@ -79,9 +79,7 @@ const InputRow = (props: DeviceRowI) => {
             >
               <option>-- Select Input to Connect --</option>
               {inputs
-                // .filter(
-                //   (o) => !o.hidden && !includes(connected_to[input.id], o.id)
-                // )
+                .filter((x) => x.is_input)
                 .map((input, idx) => (
                   <option value={idx} key={idx}>
                     {input.name}
