@@ -49,9 +49,6 @@ input {
 .min-w-400px {
     min-width: 400px;
 }
-.min-w-500px{
-    min-width: 500px;
-}
 .max-w-500px{
     max-width: 500px;
 }
@@ -334,12 +331,24 @@ input {
     .md\:max-w-100vw {
         max-width: 100vw;
     }
+    .md\:.min-w-500px{
+        min-width: 500px;
+    }
+    
 }
 
-.img-midi{
+.w-64px{
     width: 64px;
+}
+
+.h-64px{
     height: 64px;
+}
+
+.object-fill{
     object-fit: fill;
+}
+.ml-12px{
     margin-left: 12px;
 }
 

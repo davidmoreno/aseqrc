@@ -34,14 +34,14 @@ const InputRow = (props: DeviceRowI) => {
   return (
     <tr key={deviceid} className="md:flex md:flex-col">
       <th
-        className="h-full p-10px min-w-500px max-w-500px"
+        className="h-full p-10px md:min-w-500px max-w-500px"
         style={row_style(deviceid)}
       >
         <div className="flex flex-row items-center md:min-w-400px h-full with-sidetag">
           <div className="sidetag">{device.name}</div>
           <div>
             <img
-              className="img-midi"
+              className="ml-12px w-64px h-64px object-fill"
               src={get_image(device.name, port.name)}
             ></img>
           </div>
