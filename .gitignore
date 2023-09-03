@@ -2,6 +2,10 @@
 !.gitignore
 !.babelrc
 debian/aseqrc
+debian/aseqrc.debhelper.log
+debian/aseqrc.postinst.debhelper
+debian/aseqrc.substvars
+debian/files
 node_modules
 dist
 static
