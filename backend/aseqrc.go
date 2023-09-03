@@ -13,9 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/websocket"
-
 	"github.com/davidmoreno/aseqrc/alsaseq"
+	"golang.org/x/net/websocket"
 )
 
 type Config struct {

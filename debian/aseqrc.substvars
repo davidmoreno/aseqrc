@@ -1,3 +1,0 @@
-shlibs:Depends=libasound2 (>= 1.0.16), libc6 (>= 2.34)
-misc:Depends=
-misc:Pre-Depends=

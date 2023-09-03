@@ -36,6 +36,26 @@ reboots.
 My normal use case is always running in a raspberry pi, and all my
 MIDI gadgets connected.
 
+# Compile
+
+```
+make build
+```
+
+or 
+
+```
+make run
+```
+
+To develop you can do `make run` in one terminal an `make serve` in another, so any change on the 
+frontend is automatic. The url would be http://localhost:8001. 
+
+## ARM
+
+I dont know enough go to make this work, but when compiing for ARM I need to change some lienes at 
+`alsaseq.go`. Look for `ARM` to know which ones.
+
 # Install
 
 There are periodic releases at (github releases)[https://github.com/davidmoreno/aseqrc/releases]

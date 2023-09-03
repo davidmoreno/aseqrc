@@ -55,12 +55,17 @@ func poll_seq() {
 	npfds := C.snd_seq_poll_descriptors_count(seq, C.short(10))
 	var pfds *C.struct_pollfd
 	ptr := C.malloc(C.ulong(unsafe.Sizeof(pfds) * 10)) // Aseume pointer is 16 bytes.. 64bit. Should be more than enough?
+	// ARM needs this line instead
+	//ptr := C.malloc(C.uint(unsafe.Sizeof(pfds) * 10)) // Aseume pointer is 16 bytes.. 64bit. Should be more than enough?
+
 	defer C.free(ptr)
 	pfds = (*C.struct_pollfd)(ptr)
 
 	C.snd_seq_poll_descriptors(seq, pfds, C.uint(npfds), C.POLLIN)
 
 	pdfsa := (*[1 << 30]C.struct_pollfd)(unsafe.Pointer(pfds))
+	// ARM needs this line instead
+	//	pdfsa := (*[1 << 16]C.struct_pollfd)(unsafe.Pointer(pfds))
 
 	// fmt.Printf("N fds %d\n", npfds)
 
