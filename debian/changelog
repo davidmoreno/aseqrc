@@ -1,3 +1,10 @@
+aseqrc (23.09) unstable; urgency=medium
+
+  * Added logos
+  * Fixes
+
+ -- David Moreno <dmoreno@coralbits.com>  Sun, 03 Sep 2023 11:28:19 +0100
+
 aseqrc (22.07) unstable; urgency=medium
 
   * Redone in GO
