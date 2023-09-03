@@ -35,7 +35,13 @@ aseqrc: static/index.html backend/*.go backend/alsaseq/*.go
 	cp backend/aseqrc .
 
 run: build
-	./aseqrc
+	@echo 
+	@echo 
+	@echo Remember that you can start the frontend as serve, and just reload the page for frontend development.
+	@echo At http://localhost:8001/static/
+	@echo 	
+	@echo 
+	DEVEL=1 ./aseqrc
 
 serve:
 	cd frontend && make serve

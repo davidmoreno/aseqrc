@@ -4,7 +4,7 @@ import { renamed_name, row_style } from "./utils"
 import Connection from "./Connection"
 import { ConnectionTree, Device, DevicePort, Port } from "./connection"
 import { isJSDocProtectedTag } from "typescript"
-import { get_image } from "./image"
+import { MidiBrandLogo, get_image } from "./MidiBrandLogo"
 
 interface DeviceRowI {
   device: Device
@@ -40,10 +40,11 @@ const InputRow = (props: DeviceRowI) => {
         <div className="flex flex-row items-center md:min-w-400px h-full with-sidetag">
           <div className="sidetag">{device.name}</div>
           <div>
-            <img
-              className="ml-12px w-64px h-64px object-fill"
-              src={get_image(device.name, port.name)}
-            ></img>
+            <MidiBrandLogo
+              className="ml-12px"
+              device={device.name}
+              port={port.name}
+            />
           </div>
           <div className="flex-1 py-24px">{port.name}</div>
           <div className="flex flex-col">

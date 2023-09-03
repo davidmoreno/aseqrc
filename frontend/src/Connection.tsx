@@ -1,7 +1,7 @@
 import React from "react"
 import { Device, DevicePort, Port } from "./connection"
 import { renamed_name } from "./utils"
-import { get_image } from "./image"
+import { MidiBrandLogo, get_image } from "./MidiBrandLogo"
 
 interface ConnectionI {
   port: DevicePort
@@ -27,10 +27,7 @@ const Connection = (props: ConnectionI) => {
         (props.n & 1) == 0 ? "bg-blue-light" : ""
       }`}
     >
-      <img
-        className="w-64px h-64px object-fill"
-        src={get_image(devicename, portname)}
-      ></img>
+      <MidiBrandLogo device={devicename} port={portname} />
       <span className="pr-10px w-full text-center">{name}</span>
       <button
         className="min-w-45px"

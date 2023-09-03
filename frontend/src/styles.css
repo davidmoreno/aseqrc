@@ -348,6 +348,9 @@ input {
 .object-fill{
     object-fit: fill;
 }
+.object-contain{
+    object-fit: contain;
+}
 .ml-12px{
     margin-left: 12px;
 }
