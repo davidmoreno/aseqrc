@@ -53,6 +53,7 @@ func AnnounceReader(db *gorm.DB) error {
 	}
 
 	go func() {
+		FullCheck(db)
 		port := alsaseq.Port{Device: 0, Port: 1} // This is always announce port
 		alsaseq.Connect(port, reader_port)
 		defer alsaseq.Disconnect(port, reader_port)
@@ -72,34 +73,18 @@ func AnnounceReader(db *gorm.DB) error {
 				// announce_chan <- AnnouncementEvent{NewPort, alsaseq.Port{data.Data[0], data.Data[1]}, alsaseq.Port{0, 0}}
 
 				newport := alsaseq.Port{Device: data.Data[0], Port: data.Data[1]}
-				device, port := alsaseq.GetDevicePortName(newport)
-				log.Println("New port ", data.Data[0], data.Data[1], device, port)
+				log.Println("New port ", newport)
 
-				var connections []Connection
-				db.Where("from_device = ? AND from_port = ?", device, port).Find(&connections)
-				for _, conn := range connections {
-					log.Println("Connecting ", conn.FromDevice, conn.FromPort, " to ", conn.ToDevice, conn.ToPort)
-					oport, ok := alsaseq.FindPortByName(conn.ToDevice, conn.ToPort)
-					if ok {
-						log.Println("Connect ", newport, oport)
-						alsaseq.Connect(newport, oport)
-					}
-				}
-
-				db.Where("to_device = ? AND to_port = ?", device, port).Find(&connections)
-				for _, conn := range connections {
-					log.Println("Connecting ", conn.FromDevice, conn.FromPort, " to ", conn.ToDevice, conn.ToPort)
-					oport, ok := alsaseq.FindPortByName(conn.FromDevice, conn.FromPort)
-					if ok {
-						log.Println("Connect ", oport, newport)
-						alsaseq.Connect(oport, newport)
-					}
-				}
+				DoConnectionsToFrom(newport, db)
 			}
 			if data.Type == 66 {
 				log.Println("New connection ", data.Data[0], data.Data[1], "->", data.Data[2], data.Data[3])
 				SourceDevice, SourcePort := alsaseq.GetDevicePortName(alsaseq.Port{Device: data.Data[0], Port: data.Data[1]})
 				DestDevice, DestPort := alsaseq.GetDevicePortName(alsaseq.Port{Device: data.Data[2], Port: data.Data[3]})
+
+				if IgnorePortForDB(SourceDevice, SourcePort) || IgnorePortForDB(DestDevice, DestPort) {
+					continue
+				}
 
 				conn := Connection{
 					FromDevice: SourceDevice, FromPort: SourcePort,
@@ -110,15 +95,29 @@ func AnnounceReader(db *gorm.DB) error {
 				// announce_chan <- AnnouncementEvent{Connected, alsaseq.Port{data.Data[0], data.Data[1]}, alsaseq.Port{data.Data[2], data.Data[3]}}
 			}
 			if data.Type == 67 {
-				log.Println("New disconnection ", data.Data[0], data.Data[1], "->", data.Data[2], data.Data[3])
 				SourceDevice, SourcePort := alsaseq.GetDevicePortName(alsaseq.Port{Device: data.Data[0], Port: data.Data[1]})
 				DestDevice, DestPort := alsaseq.GetDevicePortName(alsaseq.Port{Device: data.Data[2], Port: data.Data[3]})
 
-				db.Delete(
-					&Connection{}, "from_device = ? AND from_port = ? AND to_device = ? AND to_port = ?",
+				log.Println(
+					"New disconnection ",
+					data.Data[0], ":", data.Data[1], " (", SourceDevice, ":", SourcePort, ")",
+					"->",
+					data.Data[2], ":", data.Data[3], "(", DestDevice, ":", DestPort, ")",
+				)
+
+				res := db.Where(
+					"from_device = ? AND from_port = ? AND to_device = ? AND to_port = ?",
 					SourceDevice, SourcePort,
 					DestDevice, DestPort,
+				).Delete(
+					&Connection{},
 				)
+				if res.Error != nil {
+					log.Println("Error deleting from db: ", res.Error)
+				} else {
+					log.Println("Rows deleted: ", res.RowsAffected)
+				}
+				log.Println(res.Statement.SQL.String(), res.Statement.Vars)
 
 				// announce_chan <- AnnouncementEvent{Disconnected, alsaseq.Port{data.Data[0], data.Data[1]}, alsaseq.Port{data.Data[2], data.Data[3]}}
 			}
@@ -129,33 +128,59 @@ func AnnounceReader(db *gorm.DB) error {
 	return nil
 }
 
-func FullCheck() {
+func FullCheck(db *gorm.DB) {
 	topology := alsaseq.GetTopology()
 
 	for device_id, device := range topology.Devices {
 		for port_id, _ := range device.Ports {
-			DoConnectionsToFrom(alsaseq.Port{Device: device_id, Port: port_id}, topology)
+			port := alsaseq.Port{Device: device_id, Port: port_id}
+			DeviceName, PortName := alsaseq.GetDevicePortName(port)
+			log.Println("Try connections: ", device_id, ":", port_id, "/", DeviceName, ":", PortName)
+			DoConnectionsFrom(port, db)
 		}
 	}
 }
 
-func GetConnectionsToFrom(port alsaseq.Port, topology alsaseq.SequencerTopology) []Connection {
-	return make([]Connection, 0, 0)
+func DoConnectionsToFrom(port alsaseq.Port, db *gorm.DB) {
+	DoConnectionsFrom(port, db)
+	DoConnectionsTo(port, db)
 }
 
-func DoConnectionsToFrom(port alsaseq.Port, topology alsaseq.SequencerTopology) {
-	connections := GetConnectionsToFrom(port, topology)
+func DoConnectionsFrom(port alsaseq.Port, db *gorm.DB) {
+	device, portname := alsaseq.GetDevicePortName(port)
 
+	if IgnorePortForDB(device, portname) {
+		return
+	}
+
+	var connections []Connection
+	db.Where("from_device = ? AND from_port = ?", device, portname).Find(&connections)
 	for _, conn := range connections {
-		from := FindPort(conn.FromDevice, conn.FromPort, topology)
-		if from == nil {
-			continue
+		log.Println("Connecting ", conn.FromDevice, conn.FromPort, " to ", conn.ToDevice, conn.ToPort)
+		oport, ok := alsaseq.FindPortByName(conn.ToDevice, conn.ToPort)
+		if ok {
+			log.Println("Connect ", port, oport)
+			alsaseq.Connect(port, oport)
 		}
-		to := FindPort(conn.ToDevice, conn.ToPort, topology)
-		if to == nil {
-			continue
+	}
+}
+
+func DoConnectionsTo(port alsaseq.Port, db *gorm.DB) {
+	device, portname := alsaseq.GetDevicePortName(port)
+
+	if IgnorePortForDB(device, portname) {
+		return
+	}
+
+	var connections []Connection
+	db.Where("to_device = ? AND to_port = ?", device, portname).Find(&connections)
+	for _, conn := range connections {
+		log.Println("Connecting ", conn.FromDevice, conn.FromPort, " to ", conn.ToDevice, conn.ToPort)
+		oport, ok := alsaseq.FindPortByName(conn.FromDevice, conn.FromPort)
+		if ok {
+			log.Println("Connect ", oport, port)
+			alsaseq.Connect(oport, port)
 		}
-		alsaseq.Connect(*from, *to)
 	}
 }
 
@@ -164,4 +189,14 @@ func FindPort(device string, port string, topology alsaseq.SequencerTopology) *a
 		return new(alsaseq.Port)
 	}
 	return nil
+}
+
+func IgnorePortForDB(device string, port string) bool {
+	if device == "System" && port == "announce" {
+		return true
+	}
+	if device == "aseqrc GO" {
+		return true
+	}
+	return false
 }
