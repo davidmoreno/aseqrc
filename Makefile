@@ -12,7 +12,8 @@ install: build
 	mkdir -p $(DESTDIR)/usr/bin/
 	cp -a backend/aseqrc $(DESTDIR)/usr/bin/
 	mkdir -p $(DESTDIR)/etc/systemd/system/
-	cp etc/aseqrc.service $(DESTDIR)/etc/systemd/system/
+	cp etc/systemd-aseqrc.service $(DESTDIR)/etc/systemd/system/
+	cp etc/avahi-aseqrc.service $(DESTDIR)/etc/avahi/services/
 	mkdir -p $(DESTDIR)/var/lib/aseqrc/
 
 
