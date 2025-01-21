@@ -23,7 +23,7 @@ case "$1" in
         adduser --disabled-password  --quiet --system \
             --home /usr/lib/aseqrc/ --no-create-home \
             --gecos "aseqrc daemon" aseqrc
-        addgroup --quiet aseqrc audio
+        adduser --quiet aseqrc audio
         mkdir -p /var/lib/aseqrc/
         chown aseqrc:audio /var/lib/aseqrc/
 
