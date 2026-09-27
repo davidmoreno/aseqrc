@@ -39,6 +39,15 @@ type Settings struct {
 
 var hostname string
 
+// Overridden at link time by the packaging scripts (-X main.version=...),
+// see packaging/scripts/common.sh and packaging/Makefile.
+var (
+	version     = "dev"
+	buildCommit = "unknown"
+	buildDistro = "unknown"
+	buildArch   = "unknown"
+)
+
 //go:embed static
 var staticFS embed.FS
 
@@ -51,7 +60,13 @@ func panic_if(e error) {
 func setup() Settings {
 	databasePath := flag.String("db", "connections.db", "Where to store the current connections")
 	port := flag.String("port", "8001", "Listen port")
+	showVersion := flag.Bool("version", false, "Show the version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("aseqrc %s (%s/%s, commit %s)\n", version, buildDistro, buildArch, buildCommit)
+		os.Exit(0)
+	}
 
 	hostname_, err := os.ReadFile("/etc/hostname")
 	hostname = strings.TrimSpace(string(hostname_))
