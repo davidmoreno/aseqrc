@@ -1,0 +1,45 @@
+#!/bin/sh
+# postinst script for aseqrc
+set -e
+
+case "$1" in
+	configure)
+		# Service account and state directory.  The package ships an empty
+		# /var/lib/aseqrc, owned by root: it is chowned here because the
+		# account only exists at this point.
+		if ! getent group aseqrc >/dev/null; then
+			addgroup --quiet --system aseqrc || true
+		fi
+		if ! getent passwd aseqrc >/dev/null; then
+			adduser --disabled-password --quiet --system \
+				--home /usr/lib/aseqrc/ --no-create-home \
+				--ingroup aseqrc \
+				--gecos "aseqrc daemon" aseqrc
+		fi
+		# Needs to reach the ALSA sequencer and the raw MIDI devices.
+		for grp in audio; do
+			if getent group "$grp" >/dev/null; then
+				adduser --quiet aseqrc "$grp" || true
+			fi
+		done
+		mkdir -p /var/lib/aseqrc/
+		chown aseqrc:aseqrc /var/lib/aseqrc/
+		chmod 0750 /var/lib/aseqrc/
+
+		if [ -d /run/systemd/system ]; then
+			systemctl --system daemon-reload >/dev/null || true
+			systemctl enable aseqrc.service >/dev/null 2>&1 || true
+			systemctl restart aseqrc.service >/dev/null 2>&1 || true
+		fi
+		;;
+
+	abort-upgrade|abort-remove|abort-deconfigure)
+		;;
+
+	*)
+		echo "postinst called with unknown argument \`$1'" >&2
+		exit 1
+		;;
+esac
+
+exit 0

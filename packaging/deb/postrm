@@ -1,0 +1,25 @@
+#!/bin/sh
+# postrm script for aseqrc
+set -e
+
+case "$1" in
+	purge)
+		rm -rf /var/lib/aseqrc
+		if getent passwd aseqrc >/dev/null; then
+			deluser --quiet aseqrc >/dev/null 2>&1 || true
+		fi
+		if getent group aseqrc >/dev/null; then
+			delgroup --quiet aseqrc >/dev/null 2>&1 || true
+		fi
+		;;
+
+	remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+		;;
+
+	*)
+		echo "postrm called with unknown argument \`$1'" >&2
+		exit 1
+		;;
+esac
+
+exit 0

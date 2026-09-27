@@ -53,8 +53,10 @@ frontend is automatic. The url would be http://localhost:8001.
 
 ## ARM
 
-I dont know enough go to make this work, but when compiing for ARM I need to change some lienes at 
-`alsaseq.go`. Look for `ARM` to know which ones.
+It compiles and runs on 32 and 64 bit ARM. `alsaseq.go` used to need a couple
+of lines changed by hand depending on the target; that is fixed and the same
+source builds for amd64, armhf and arm64 (see `backend/alsaseq/alsaseq.go`,
+the poll descriptor allocation and `unsafe.Slice`).
 
 # Install
 
@@ -96,6 +98,29 @@ To stop always run:
 sudo systemctl disable aseqrc
 ```
 
+# Packages
+
+There are prebuilt packages for the usual suspects, and they are all built in a
+container of the distribution and architecture they are for:
+
+```sh
+make packages                                   # ubuntu, debian and fedora, amd64/armhf/arm64
+make deb-docker DISTRO=ubuntu-26.04 ARCH=armhf  # one .deb
+make rpm        DISTRO=fedora-44    ARCH=aarch64 # one .rpm
+```
+
+`armhf` for 32 bit Raspberry Pi OS, `arm64` for everything newer. The artifacts
+land in `packaging/out/` with checksums and a manifest, and `make -C packaging help`
+lists all of it. See [packaging/README.md](packaging/README.md) for the details
+(distributions, architectures, cross compilation with docker/QEMU, caching).
+
+The binary can tell you what it is:
+
+```sh
+aseqrc -version
+# aseqrc 23.09+7+gcd8e7cc (debian-13/arm64, commit cd8e7cc15021)
+```
+
 # Compile and Install
 
 It has been developed and tested on Ubuntu 20.04. Older versions may need more work.
@@ -112,4 +137,6 @@ apt install nodejs yarnpkg dh-make fakeroot
 make deb
 ```
 
-The .deb file is created at the parent directory.
+The .deb file is created at the parent directory, on the machine you build it
+on. For packages of other distributions and architectures use the docker based
+build above instead: it does not need anything installed apart from docker.

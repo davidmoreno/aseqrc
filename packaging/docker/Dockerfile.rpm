@@ -1,0 +1,66 @@
+# ===========================================================================
+#  Build container for Fedora / RHEL derived distributions.
+#
+#  Same idea as Dockerfile.deb: built with `docker build --platform <target>`,
+#  so aarch64 builds are a real aarch64 userspace running under QEMU/binfmt and
+#  rpmbuild generates the dependency metadata of the target architecture.
+#
+#  Note that Fedora has no 32 bit ARM (armhf) since Fedora 36, so only amd64 and
+#  arm64 are offered here -- see packaging/config.mk.
+# ===========================================================================
+ARG BASE_IMAGE=fedora:44
+FROM ${BASE_IMAGE}
+
+ARG GO_SOURCE=upstream
+ARG GO_VERSION=1.27.1
+ARG GO_TARBALL_ARCH=amd64
+ARG EXTRA_PACKAGES=
+
+RUN set -eux; \
+    dnf install -y --setopt=install_weak_deps=False \
+        alsa-lib-devel \
+        ca-certificates \
+        coreutils \
+        curl \
+        file \
+        findutils \
+        gcc \
+        git \
+        gzip \
+        make \
+        pkgconf-pkg-config \
+        redhat-rpm-config \
+        rpm-build \
+        systemd-rpm-macros \
+        tar \
+        which \
+    ; \
+    if [ -n "${EXTRA_PACKAGES}" ]; then \
+        dnf install -y ${EXTRA_PACKAGES}; \
+    fi; \
+    dnf clean all
+
+# rpmbuild needs the build host to be a sane rpm system; nothing about the
+# account the package creates is needed here (see the %pre/%post of the spec).
+
+RUN set -eux; \
+    if [ "${GO_SOURCE}" = "distro" ]; then \
+        dnf install -y golang; \
+        dnf clean all; \
+        go version; \
+    else \
+        curl -fsSL -o /tmp/go.tar.gz \
+            "https://go.dev/dl/go${GO_VERSION}.linux-${GO_TARBALL_ARCH}.tar.gz"; \
+        tar -C /usr/local -xzf /tmp/go.tar.gz; \
+        rm -f /tmp/go.tar.gz; \
+        /usr/local/go/bin/go version; \
+    fi
+
+ENV GOPATH=/go \
+    GOMODCACHE=/go/pkg/mod \
+    GOCACHE=/go/cache \
+    CGO_ENABLED=1 \
+    GOTOOLCHAIN=local \
+    PATH=/usr/local/go/bin:/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+WORKDIR /tmp

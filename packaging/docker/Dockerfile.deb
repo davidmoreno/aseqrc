@@ -1,0 +1,67 @@
+# ===========================================================================
+#  Build container for Debian/Ubuntu derived distributions.
+#
+#  Built with `docker build --platform <target>`: when the platform is not the
+#  host one, everything below (apt, gcc, dpkg) runs through QEMU/binfmt, which
+#  means the container really is a userspace of the target architecture.  No
+#  cross toolchain, no sysroot, and dpkg-shlibdeps in the build script computes
+#  the dependencies against the real target archives.
+# ===========================================================================
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG GO_SOURCE=upstream
+ARG GO_VERSION=1.27.1
+ARG GO_TARBALL_ARCH=amd64
+ARG EXTRA_PACKAGES=
+
+# Everything the aseqrc build needs:
+#   build-essential/gcc + libc6-dev   cgo (go-sqlite3, alsaseq)
+#   libasound2-dev                    alsa/asoundlib.h and the shlibs data
+#   dpkg-dev                          dpkg-shlibdeps, dpkg-deb
+#   ca-certificates/curl/xz-utils     Go toolchain + module downloads
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        curl \
+        file \
+        fakeroot \
+        git \
+        make \
+        libasound2-dev \
+        pkg-config \
+        dpkg-dev \
+    ; \
+    if [ -n "${EXTRA_PACKAGES}" ]; then \
+        apt-get install -y --no-install-recommends ${EXTRA_PACKAGES}; \
+    fi; \
+    rm -rf /var/lib/apt/lists/*
+
+# GO_SOURCE=distro uses whatever Go the distribution ships (works offline, but
+# the version then depends on the release); the default is the upstream
+# toolchain so every distribution is built with the same compiler.
+RUN set -eux; \
+    if [ "${GO_SOURCE}" = "distro" ]; then \
+        apt-get update; \
+        apt-get install -y --no-install-recommends golang-go; \
+        rm -rf /var/lib/apt/lists/*; \
+        go version; \
+    else \
+        curl -fsSL -o /tmp/go.tar.gz \
+            "https://go.dev/dl/go${GO_VERSION}.linux-${GO_TARBALL_ARCH}.tar.gz"; \
+        tar -C /usr/local -xzf /tmp/go.tar.gz; \
+        rm -f /tmp/go.tar.gz; \
+        /usr/local/go/bin/go version; \
+    fi
+
+ENV GOPATH=/go \
+    GOMODCACHE=/go/pkg/mod \
+    GOCACHE=/go/cache \
+    CGO_ENABLED=1 \
+    GOTOOLCHAIN=local \
+    PATH=/usr/local/go/bin:/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+WORKDIR /tmp
