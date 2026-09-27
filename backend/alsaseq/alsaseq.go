@@ -54,18 +54,23 @@ func poll_seq() {
 
 	npfds := C.snd_seq_poll_descriptors_count(seq, C.short(10))
 	var pfds *C.struct_pollfd
-	ptr := C.malloc(C.ulong(unsafe.Sizeof(pfds) * 10)) // Aseume pointer is 16 bytes.. 64bit. Should be more than enough?
-	// ARM needs this line instead
-	//ptr := C.malloc(C.uint(unsafe.Sizeof(pfds) * 10)) // Aseume pointer is 16 bytes.. 64bit. Should be more than enough?
+	// Room for 10 descriptors. Note this is the size of the struct and not the
+	// size of a pointer: sizeof(struct pollfd) is 8 on both 64 and 32 bit
+	// targets, while a pointer is 8 or 4, so the old pointer sized allocation
+	// was only correct by accident on 64 bit. C.size_t is the portable spelling
+	// of malloc's argument, C.ulong only matches it where long is 64 bit.
+	var one_pollfd C.struct_pollfd
+	ptr := C.malloc(C.size_t(unsafe.Sizeof(one_pollfd)) * 10)
 
 	defer C.free(ptr)
 	pfds = (*C.struct_pollfd)(ptr)
 
 	C.snd_seq_poll_descriptors(seq, pfds, C.uint(npfds), C.POLLIN)
 
-	pdfsa := (*[1 << 30]C.struct_pollfd)(unsafe.Pointer(pfds))
-	// ARM needs this line instead
-	//	pdfsa := (*[1 << 16]C.struct_pollfd)(unsafe.Pointer(pfds))
+	// unsafe.Slice works on every architecture, unlike the (*[1 << 30]T) trick
+	// this replaces, whose array type does not even fit in a 32 bit address
+	// space (that is why ARM needed a different line here).
+	pdfsa := unsafe.Slice(pfds, int(npfds))
 
 	// fmt.Printf("N fds %d\n", npfds)
 
